@@ -11,91 +11,6 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
-// compute_B
-arma::mat compute_B(const arma::mat& Lambda, const double& sigma_sq);
-RcppExport SEXP _BASIL_compute_B(SEXP LambdaSEXP, SEXP sigma_sqSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::mat& >::type Lambda(LambdaSEXP);
-    Rcpp::traits::input_parameter< const double& >::type sigma_sq(sigma_sqSEXP);
-    rcpp_result_gen = Rcpp::wrap(compute_B(Lambda, sigma_sq));
-    return rcpp_result_gen;
-END_RCPP
-}
-// posterior_samples
-List posterior_samples(const arma::mat& Y, const arma::mat& Lambda_C_hat, const arma::mat& Lambda_N_hat, double tau_C, double tau_N, double sigma_sq_hat, const arma::mat P_C, double v_0, double sigma_sq_0, int N_mc, double rho_C, double rho_N);
-RcppExport SEXP _BASIL_posterior_samples(SEXP YSEXP, SEXP Lambda_C_hatSEXP, SEXP Lambda_N_hatSEXP, SEXP tau_CSEXP, SEXP tau_NSEXP, SEXP sigma_sq_hatSEXP, SEXP P_CSEXP, SEXP v_0SEXP, SEXP sigma_sq_0SEXP, SEXP N_mcSEXP, SEXP rho_CSEXP, SEXP rho_NSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::mat& >::type Y(YSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type Lambda_C_hat(Lambda_C_hatSEXP);
-    Rcpp::traits::input_parameter< const arma::mat& >::type Lambda_N_hat(Lambda_N_hatSEXP);
-    Rcpp::traits::input_parameter< double >::type tau_C(tau_CSEXP);
-    Rcpp::traits::input_parameter< double >::type tau_N(tau_NSEXP);
-    Rcpp::traits::input_parameter< double >::type sigma_sq_hat(sigma_sq_hatSEXP);
-    Rcpp::traits::input_parameter< const arma::mat >::type P_C(P_CSEXP);
-    Rcpp::traits::input_parameter< double >::type v_0(v_0SEXP);
-    Rcpp::traits::input_parameter< double >::type sigma_sq_0(sigma_sq_0SEXP);
-    Rcpp::traits::input_parameter< int >::type N_mc(N_mcSEXP);
-    Rcpp::traits::input_parameter< double >::type rho_C(rho_CSEXP);
-    Rcpp::traits::input_parameter< double >::type rho_N(rho_NSEXP);
-    rcpp_result_gen = Rcpp::wrap(posterior_samples(Y, Lambda_C_hat, Lambda_N_hat, tau_C, tau_N, sigma_sq_hat, P_C, v_0, sigma_sq_0, N_mc, rho_C, rho_N));
-    return rcpp_result_gen;
-END_RCPP
-}
-// sample_Lambda_outer
-arma::cube sample_Lambda_outer(arma::cube Lambda_samples);
-RcppExport SEXP _BASIL_sample_Lambda_outer(SEXP Lambda_samplesSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::cube >::type Lambda_samples(Lambda_samplesSEXP);
-    rcpp_result_gen = Rcpp::wrap(sample_Lambda_outer(Lambda_samples));
-    return rcpp_result_gen;
-END_RCPP
-}
-// sample_latent_factors
-List sample_latent_factors(arma::mat Y, arma::cube Lambda_samples, arma::vec sigma_sq_samples);
-RcppExport SEXP _BASIL_sample_latent_factors(SEXP YSEXP, SEXP Lambda_samplesSEXP, SEXP sigma_sq_samplesSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::mat >::type Y(YSEXP);
-    Rcpp::traits::input_parameter< arma::cube >::type Lambda_samples(Lambda_samplesSEXP);
-    Rcpp::traits::input_parameter< arma::vec >::type sigma_sq_samples(sigma_sq_samplesSEXP);
-    rcpp_result_gen = Rcpp::wrap(sample_latent_factors(Y, Lambda_samples, sigma_sq_samples));
-    return rcpp_result_gen;
-END_RCPP
-}
-// predict_Y_from_factors
-List predict_Y_from_factors(arma::cube M_samples, arma::cube Lambda_samples, arma::vec sigma_sq_samples);
-RcppExport SEXP _BASIL_predict_Y_from_factors(SEXP M_samplesSEXP, SEXP Lambda_samplesSEXP, SEXP sigma_sq_samplesSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::cube >::type M_samples(M_samplesSEXP);
-    Rcpp::traits::input_parameter< arma::cube >::type Lambda_samples(Lambda_samplesSEXP);
-    Rcpp::traits::input_parameter< arma::vec >::type sigma_sq_samples(sigma_sq_samplesSEXP);
-    rcpp_result_gen = Rcpp::wrap(predict_Y_from_factors(M_samples, Lambda_samples, sigma_sq_samples));
-    return rcpp_result_gen;
-END_RCPP
-}
-// compute_covariance_posterior_samples_cc
-List compute_covariance_posterior_samples_cc(const arma::cube& Lambda_samples, const arma::vec& sigma_sq_samples, bool samples, bool only_low_rank);
-RcppExport SEXP _BASIL_compute_covariance_posterior_samples_cc(SEXP Lambda_samplesSEXP, SEXP sigma_sq_samplesSEXP, SEXP samplesSEXP, SEXP only_low_rankSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::cube& >::type Lambda_samples(Lambda_samplesSEXP);
-    Rcpp::traits::input_parameter< const arma::vec& >::type sigma_sq_samples(sigma_sq_samplesSEXP);
-    Rcpp::traits::input_parameter< bool >::type samples(samplesSEXP);
-    Rcpp::traits::input_parameter< bool >::type only_low_rank(only_low_rankSEXP);
-    rcpp_result_gen = Rcpp::wrap(compute_covariance_posterior_samples_cc(Lambda_samples, sigma_sq_samples, samples, only_low_rank));
-    return rcpp_result_gen;
-END_RCPP
-}
 // compute_correlation_posterior_samples_cc
 List compute_correlation_posterior_samples_cc(const arma::cube& Lambda_samples, const arma::vec& sigma_sq_samples, bool samples);
 RcppExport SEXP _BASIL_compute_correlation_posterior_samples_cc(SEXP Lambda_samplesSEXP, SEXP sigma_sq_samplesSEXP, SEXP samplesSEXP) {
@@ -122,16 +37,24 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// compute_Psi_samples_cpp
+arma::cube compute_Psi_samples_cpp(const arma::cube& Lambda_samples, const arma::mat& P_C, Rcpp::Nullable<arma::mat> R_in);
+RcppExport SEXP _BASIL_compute_Psi_samples_cpp(SEXP Lambda_samplesSEXP, SEXP P_CSEXP, SEXP R_inSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::cube& >::type Lambda_samples(Lambda_samplesSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type P_C(P_CSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<arma::mat> >::type R_in(R_inSEXP);
+    rcpp_result_gen = Rcpp::wrap(compute_Psi_samples_cpp(Lambda_samples, P_C, R_in));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_BASIL_compute_B", (DL_FUNC) &_BASIL_compute_B, 2},
-    {"_BASIL_posterior_samples", (DL_FUNC) &_BASIL_posterior_samples, 12},
-    {"_BASIL_sample_Lambda_outer", (DL_FUNC) &_BASIL_sample_Lambda_outer, 1},
-    {"_BASIL_sample_latent_factors", (DL_FUNC) &_BASIL_sample_latent_factors, 3},
-    {"_BASIL_predict_Y_from_factors", (DL_FUNC) &_BASIL_predict_Y_from_factors, 3},
-    {"_BASIL_compute_covariance_posterior_samples_cc", (DL_FUNC) &_BASIL_compute_covariance_posterior_samples_cc, 4},
     {"_BASIL_compute_correlation_posterior_samples_cc", (DL_FUNC) &_BASIL_compute_correlation_posterior_samples_cc, 3},
     {"_BASIL_compute_Gamma_samples_cpp", (DL_FUNC) &_BASIL_compute_Gamma_samples_cpp, 3},
+    {"_BASIL_compute_Psi_samples_cpp", (DL_FUNC) &_BASIL_compute_Psi_samples_cpp, 3},
     {NULL, NULL, 0}
 };
 

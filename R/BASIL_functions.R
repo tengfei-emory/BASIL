@@ -206,32 +206,3 @@ compute_Psiposterior <- function(Lambda_samples, fit){
 }
 
 
-#' Compute posterior samples of Gamma (pathway-informed loadings component)
-#'
-#' @param Lambda_samples Array of posterior samples of the loading matrix
-#'   (genes × k × n_samples)
-#' @param C A binary gene membership matrix (genes × pathways)
-#'
-#' @return An array of posterior samples of Gamma (pathways × k × n_samples)
-#'
-#' @export
-#'
-compute_Gammaposterior <- function(Lambda_samples, C){
-  N_samples <- dim(Lambda_samples)[3]
-  q <- dim(C)[2]
-  k <- dim(Lambda_samples)[2]
-  tCCt <- crossprod(C)
-  s_cross_C <- svd(tCCt)
-  V_C <- s_cross_C$u
-  D_C <- diag(as.vector(sqrt(s_cross_C$d)))
-  D_C_inv <- diag(as.vector(1/sqrt(s_cross_C$d)))
-  U_C <- C %*% V_C %*% D_C_inv
-  # (C'C)^{-1}C'
-  C_left_pinv <- V_C %*% D_C_inv %*% t(U_C)
-
-  Gamma_samples <- array(0, dim=c(q, k, N_samples))
-  for(i in 1:N_samples){
-    Gamma_samples[,,i] = C_left_pinv %*% Lambda_samples[,,i]
-  }
-  return(Gamma_samples)
-}
