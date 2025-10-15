@@ -2,7 +2,7 @@
 % Please edit documentation in R/BASIL_functions.R
 \name{estimate_latent_dimension}
 \alias{estimate_latent_dimension}
-\title{Estimate the latent dimension using Joint Information Criterion}
+\title{Estimate the latent dimension using JIC}
 \usage{
 estimate_latent_dimension(Y, k_max)
 }
@@ -18,5 +18,5 @@ A list containing:
 \item{svd_Y}{SVD decomposition of Y (output from svd() function)}
 }
 \description{
-Estimate the latent dimension using Joint Information Criterion
+Estimate the latent dimension using JIC
 }

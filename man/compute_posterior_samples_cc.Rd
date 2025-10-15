@@ -2,14 +2,14 @@
 % Please edit documentation in R/BASIL_functions.R
 \name{compute_posterior_samples_cc}
 \alias{compute_posterior_samples_cc}
-\title{Compute posterior samples with correlation correction}
+\title{Compute posterior samples for BASIL model parameters with coverage correction}
 \usage{
 compute_posterior_samples_cc(
   Y,
   Lambda_C,
   Lambda_N,
-  tau_C,
-  tau_N,
+  tau_gamma,
+  tau_psi,
   sigma_sq,
   P_C,
   v0 = 1,
@@ -20,21 +20,21 @@ compute_posterior_samples_cc(
 \arguments{
 \item{Y}{A numeric matrix of gene expression data (samples × genes)}
 
-\item{Lambda_C}{Loading matrix for common/pathway-guided factors (genes × k)}
+\item{Lambda_C}{Loading matrix in the columns space of C, i.e. pathway-guided loadings (genes × k)}
 
-\item{Lambda_N}{Loading matrix for noise/non-pathway factors (genes × k)}
+\item{Lambda_N}{Loading matrix in the null space of C, i.e. unstructured loadings (genes × k)}
 
-\item{tau_C}{Prior precision parameter for common factors}
+\item{tau_gamma}{Prior variance parameter for Lambda_C (scalar)}
 
-\item{tau_N}{Prior precision parameter for noise factors}
+\item{tau_psi}{Prior variance parameter for Lambda_N (scalar)}
 
 \item{sigma_sq}{Error variance estimate}
 
-\item{P_C}{Projection matrix onto pathway space (genes × genes)}
+\item{P_C}{Projection matrix onto the column space of C (genes × genes)}
 
-\item{v0}{Prior degrees of freedom for error variance. Default is 1.}
+\item{v0}{Prior hyperparameter for the error variance. Default is 1.}
 
-\item{sigma_sq_0}{Prior scale parameter for error variance. Default is 1.}
+\item{sigma_sq_0}{Prior hyperparameter for the error variance. Default is 1.}
 
 \item{n_MC}{Number of MCMC iterations (posterior samples). Default is 100.}
 }
@@ -42,8 +42,8 @@ compute_posterior_samples_cc(
 A list containing:
 \item{Lambda_samples}{Array of loading matrix posterior samples (genes × k × n_MC)}
 \item{sigma_sq_samples}{Vector of error variance posterior samples (length n_MC)}
-\item{rho}{Average correlation parameter used for MCMC tuning (scalar)}
+\item{rho}{Coverage correction term (scalar)}
 }
 \description{
-Compute posterior samples with correlation correction
+Compute posterior samples for BASIL model parameters with coverage correction
 }
