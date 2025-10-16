@@ -179,7 +179,9 @@ arma::cube compute_Psi_samples_cpp(
   return Psi_samples;
 }
 
-
+//' Internal helper: Compute B matrix
+//' @keywords internal
+// [[Rcpp::export]]
 arma::mat compute_B(const arma::mat& Lambda, const double& sigma_sq) {
   arma::mat Lambda_outer = Lambda * Lambda.t();
   int p = Lambda.n_rows;
@@ -199,6 +201,7 @@ arma::mat compute_B(const arma::mat& Lambda, const double& sigma_sq) {
 }
 
 
+// [[Rcpp::export]]
 List posterior_samples(const arma::mat& Y,
                    const arma::mat& Lambda_C_hat,
                    const arma::mat& Lambda_N_hat,

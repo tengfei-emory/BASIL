@@ -15,7 +15,7 @@
 #' @export
 #'
 compute_correlation_posterior_samples_cc <- function(Lambda_samples, sigma_sq_samples, samples = TRUE) {
-    .Call('_BASIL_compute_correlation_posterior_samples_cc', PACKAGE = 'BASIL', Lambda_samples, sigma_sq_samples, samples)
+    .Call(`_BASIL_compute_correlation_posterior_samples_cc`, Lambda_samples, sigma_sq_samples, samples)
 }
 
 #' Compute posterior samples of Gamma
@@ -31,7 +31,7 @@ compute_correlation_posterior_samples_cc <- function(Lambda_samples, sigma_sq_sa
 #' @export
 #'
 compute_Gamma_samples_cpp <- function(Lambda_samples, C, R_in = NULL) {
-    .Call('_BASIL_compute_Gamma_samples_cpp', PACKAGE = 'BASIL', Lambda_samples, C, R_in)
+    .Call(`_BASIL_compute_Gamma_samples_cpp`, Lambda_samples, C, R_in)
 }
 
 #' Compute posterior samples of Psi
@@ -48,6 +48,16 @@ compute_Gamma_samples_cpp <- function(Lambda_samples, C, R_in = NULL) {
 #' @export
 #'
 compute_Psi_samples_cpp <- function(Lambda_samples, P_C, R_in = NULL) {
-    .Call('_BASIL_compute_Psi_samples_cpp', PACKAGE = 'BASIL', Lambda_samples, P_C, R_in)
+    .Call(`_BASIL_compute_Psi_samples_cpp`, Lambda_samples, P_C, R_in)
+}
+
+#' Internal helper: Compute B matrix
+#' @keywords internal
+compute_B <- function(Lambda, sigma_sq) {
+    .Call(`_BASIL_compute_B`, Lambda, sigma_sq)
+}
+
+posterior_samples <- function(Y, Lambda_C_hat, Lambda_N_hat, tau_C, tau_N, sigma_sq_hat, P_C, v_0 = 1, sigma_sq_0 = 1, N_mc = 100L, rho_C = 1, rho_N = 1) {
+    .Call(`_BASIL_posterior_samples`, Y, Lambda_C_hat, Lambda_N_hat, tau_C, tau_N, sigma_sq_hat, P_C, v_0, sigma_sq_0, N_mc, rho_C, rho_N)
 }
 

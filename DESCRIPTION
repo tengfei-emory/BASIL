@@ -15,12 +15,21 @@ LinkingTo:
     Rcpp,
     RcppArmadillo
 Imports: 
-    RColorBrewer,
     ggraph,
     igraph,
     pheatmap,
-    ggplot2
+    ggplot2,
+    RColorBrewer,
+    Rcpp
 Suggests: 
     knitr,
-    rmarkdown
+    rmarkdown,
+    PLIER,
+    ComplexHeatmap, 
+    tidyverse,
+    reshape2,
+    gridExtra,
+    mvtnorm,
+    scico,
+    testthat
 VignetteBuilder: knitr
