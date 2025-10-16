@@ -14,7 +14,7 @@ install_github("federicastolf/BASIL")
 
 ## Usage
 
-**[View Tutorial Online](https://htmlpreview.github.io/?https://github.com/federicastolf/BASIL/blob/main/doc/vignette.html)**
+Check out the [vignette](https://raw.githack.com/federicastolf/BASIL/main/doc/vignette.html) for an example of the package usage.
 
 ## Reference
 
