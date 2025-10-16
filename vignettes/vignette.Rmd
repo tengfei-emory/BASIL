@@ -113,12 +113,11 @@ Corr_plier <- cov2cor(Cov_plier)
 
 ```{r posterior-samples}
 # Generate 500 posterior samples 
-# NB metti 500
 basil_loadings_samples <- compute_posterior_samples_cc(Y = Y, 
   Lambda_C = fit_basil$Lambda_C, Lambda_N = fit_basil$Lambda_N,
   tau_gamma = fit_basil$tau_gamma, tau_psi = fit_basil$tau_psi,
   sigma_sq = fit_basil$sigma_sq, P_C = fit_basil$P_C, v0 = 1,
-  sigma_sq_0 = 1, n_MC = 10)
+  sigma_sq_0 = 1, n_MC = 500)
 
 ```
 
