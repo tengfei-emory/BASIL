@@ -2,7 +2,7 @@
 title: "BASIL analysis of RNA-seq data"
 author: "Federica Stolf and Lorenzo Mauri"
 date: "`r Sys.Date()`"
-output: rmarkdown::html_vignette
+output: pdf_document
 vignette: >
   %\VignetteIndexEntry{BASIL analysis of RNA-seq data}
   %\VignetteEngine{knitr::rmarkdown}
