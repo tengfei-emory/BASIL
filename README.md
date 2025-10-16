@@ -14,7 +14,7 @@ install_github("federicastolf/BASIL")
 
 ## Usage
 
-Check out the [vignette](vignette/vignette.pdf) for an example of the package usage.
+Check out the [vignette](vignettes/vignette.pdf) for an example of the package usage.
 
 ## Reference
 
