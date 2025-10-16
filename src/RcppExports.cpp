@@ -24,29 +24,29 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// compute_Gamma_samples_cpp
-arma::cube compute_Gamma_samples_cpp(const arma::cube& Lambda_samples, const arma::mat& C, Rcpp::Nullable<arma::mat> R_in);
-RcppExport SEXP _BASIL_compute_Gamma_samples_cpp(SEXP Lambda_samplesSEXP, SEXP CSEXP, SEXP R_inSEXP) {
+// compute_Gamma_samples
+arma::cube compute_Gamma_samples(const arma::cube& Lambda_samples, const arma::mat& C, Rcpp::Nullable<arma::mat> R_in);
+RcppExport SEXP _BASIL_compute_Gamma_samples(SEXP Lambda_samplesSEXP, SEXP CSEXP, SEXP R_inSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< const arma::cube& >::type Lambda_samples(Lambda_samplesSEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type C(CSEXP);
     Rcpp::traits::input_parameter< Rcpp::Nullable<arma::mat> >::type R_in(R_inSEXP);
-    rcpp_result_gen = Rcpp::wrap(compute_Gamma_samples_cpp(Lambda_samples, C, R_in));
+    rcpp_result_gen = Rcpp::wrap(compute_Gamma_samples(Lambda_samples, C, R_in));
     return rcpp_result_gen;
 END_RCPP
 }
-// compute_Psi_samples_cpp
-arma::cube compute_Psi_samples_cpp(const arma::cube& Lambda_samples, const arma::mat& P_C, Rcpp::Nullable<arma::mat> R_in);
-RcppExport SEXP _BASIL_compute_Psi_samples_cpp(SEXP Lambda_samplesSEXP, SEXP P_CSEXP, SEXP R_inSEXP) {
+// compute_Psi_samples
+arma::cube compute_Psi_samples(const arma::cube& Lambda_samples, const arma::mat& P_C, Rcpp::Nullable<arma::mat> R_in);
+RcppExport SEXP _BASIL_compute_Psi_samples(SEXP Lambda_samplesSEXP, SEXP P_CSEXP, SEXP R_inSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< const arma::cube& >::type Lambda_samples(Lambda_samplesSEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type P_C(P_CSEXP);
     Rcpp::traits::input_parameter< Rcpp::Nullable<arma::mat> >::type R_in(R_inSEXP);
-    rcpp_result_gen = Rcpp::wrap(compute_Psi_samples_cpp(Lambda_samples, P_C, R_in));
+    rcpp_result_gen = Rcpp::wrap(compute_Psi_samples(Lambda_samples, P_C, R_in));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -87,8 +87,8 @@ END_RCPP
 
 static const R_CallMethodDef CallEntries[] = {
     {"_BASIL_compute_correlation_posterior_samples_cc", (DL_FUNC) &_BASIL_compute_correlation_posterior_samples_cc, 3},
-    {"_BASIL_compute_Gamma_samples_cpp", (DL_FUNC) &_BASIL_compute_Gamma_samples_cpp, 3},
-    {"_BASIL_compute_Psi_samples_cpp", (DL_FUNC) &_BASIL_compute_Psi_samples_cpp, 3},
+    {"_BASIL_compute_Gamma_samples", (DL_FUNC) &_BASIL_compute_Gamma_samples, 3},
+    {"_BASIL_compute_Psi_samples", (DL_FUNC) &_BASIL_compute_Psi_samples, 3},
     {"_BASIL_compute_B", (DL_FUNC) &_BASIL_compute_B, 2},
     {"_BASIL_posterior_samples", (DL_FUNC) &_BASIL_posterior_samples, 12},
     {NULL, NULL, 0}

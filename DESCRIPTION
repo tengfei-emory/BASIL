@@ -29,7 +29,6 @@ Suggests:
     tidyverse,
     reshape2,
     gridExtra,
-    mvtnorm,
     scico,
     testthat
 VignetteBuilder: knitr

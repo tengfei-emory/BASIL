@@ -181,28 +181,3 @@ compute_covariance_posterior_mean <- function(Y, fit){
 }
 
 
-#' Compute posterior samples of Psi (unstructured loadings component)
-#'
-#' @param Lambda_samples Array of posterior samples of the loading matrix
-#'   (genes × k × n_samples)
-#' @param fit A list containing model fit from \code{compute_point_estimates}
-#'
-#' @return An array of posterior samples of Psi (genes × k × n_samples),
-#'
-#' @export
-#'
-compute_Psiposterior <- function(Lambda_samples, fit){
-  N_samples <- dim(Lambda_samples)[3]
-  p <- dim(Lambda_samples)[1]
-  k <- dim(Lambda_samples)[2]
-  P_C <- fit$P_C
-  Q_C <- diag(1, p, p) - P_C
-
-  Psi_samples <- array(0, dim=c(p, k, N_samples))
-  for(i in 1:N_samples){
-    Psi_samples[,,i] <- Q_C %*% Lambda_samples[,,i]
-  }
-  return(Psi_samples)
-}
-
-

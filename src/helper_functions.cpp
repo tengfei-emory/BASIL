@@ -74,7 +74,7 @@ List compute_correlation_posterior_samples_cc(
 //' @export
 //'
 // [[Rcpp::export]]
-arma::cube compute_Gamma_samples_cpp(
+arma::cube compute_Gamma_samples(
     const arma::cube& Lambda_samples, const arma::mat& C,
     Rcpp::Nullable<arma::mat> R_in = R_NilValue
 ) {
@@ -136,7 +136,7 @@ arma::cube compute_Gamma_samples_cpp(
 //' @export
 //'
 // [[Rcpp::export]]
-arma::cube compute_Psi_samples_cpp(
+arma::cube compute_Psi_samples(
    const arma::cube& Lambda_samples,
    const arma::mat& P_C,
    Rcpp::Nullable<arma::mat> R_in = R_NilValue
@@ -201,6 +201,8 @@ arma::mat compute_B(const arma::mat& Lambda, const double& sigma_sq) {
 }
 
 
+//' Internal helper: Compute B matrix
+//' @keywords internal
 // [[Rcpp::export]]
 List posterior_samples(const arma::mat& Y,
                    const arma::mat& Lambda_C_hat,
