@@ -51,13 +51,77 @@ compute_Psi_samples <- function(Lambda_samples, P_C, R_in = NULL) {
     .Call(`_BASIL_compute_Psi_samples`, Lambda_samples, P_C, R_in)
 }
 
+#' Compute outer products of loading matrices across posterior samples
+#'
+#' For each posterior sample of the loading matrix Lambda, this function
+#' computes the outer product Lambda * Lambda^T.
+#'
+#' @param Lambda_samples Array of loading matrix posterior samples
+#'   (genes × k × n_samples).
+#'
+#' @return An array of outer product matrices (genes × genes × n_samples).
+#'
+#' @export
+#'
+sample_Lambda_outer <- function(Lambda_samples) {
+    .Call(`_BASIL_sample_Lambda_outer`, Lambda_samples)
+}
+
+#' Sample latent factors from their posterior distribution
+#'
+#' @param Y Numeric matrix of gene expression data (samples × genes).
+#' @param Lambda_samples Array of loading matrix posterior samples
+#'   (genes × k × n_samples).
+#' @param sigma_sq_samples Vector of error variance posterior samples
+#'   (length n_samples).
+#' @return A list containing:
+#'   \item{M_mean}{Posterior mean of the latent factor matrix (samples × k).}
+#'   \item{M_samples}{Array of latent factor posterior samples (samples × k × n_samples).}
+#'
+#' @export
+#'
+sample_latent_factors <- function(Y, Lambda_samples, sigma_sq_samples) {
+    .Call(`_BASIL_sample_latent_factors`, Y, Lambda_samples, sigma_sq_samples)
+}
+
+#' Compute posterior samples of the gene covariance matrix
+#'
+#' Generates posterior samples of the gene-gene covariance matrix from
+#' posterior samples of the loading matrix and error variance. The covariance
+#' can be decomposed as Cov(Y) = Lambda * Lambda^T + sigma_sq * I, where
+#' Lambda * Lambda^T is the low-rank component and sigma_sq * I is the
+#' diagonal noise component.
+#'
+#' @param Lambda_samples Array of loading matrix posterior samples
+#'   (genes × k × n_samples).
+#' @param sigma_sq_samples Vector of error variance posterior samples
+#'   (length n_samples).
+#' @param samples Logical flag indicating whether to return all posterior
+#'   samples. If TRUE (default), returns both individual covariance matrices
+#'   for each sample and the posterior mean. If FALSE, returns only the
+#'   posterior mean covariance matrix, which is faster and uses less memory.
+#' @param only_low_rank Logical flag indicating whether to return only the
+#'   low-rank component Lambda * Lambda^T (if TRUE) or the full covariance
+#'   including the error variance term (if FALSE, default).
+#'
+#' @return A list containing:
+#'   \item{posterior_mean}{Posterior mean of the covariance matrix (genes × genes).}
+#'   \item{posterior_samples}{(Only if samples = TRUE) Array of covariance matrix
+#'     posterior samples (genes × genes × n_samples).}
+#'
+#' @export
+#'
+compute_covariance_posterior_samples_cc <- function(Lambda_samples, sigma_sq_samples, samples = TRUE, only_low_rank = FALSE) {
+    .Call(`_BASIL_compute_covariance_posterior_samples_cc`, Lambda_samples, sigma_sq_samples, samples, only_low_rank)
+}
+
 #' Internal helper: Compute B matrix
 #' @keywords internal
 compute_B <- function(Lambda, sigma_sq) {
     .Call(`_BASIL_compute_B`, Lambda, sigma_sq)
 }
 
-#' Internal helper: Compute B matrix
+#' Internal helper: posterior samples
 #' @keywords internal
 posterior_samples <- function(Y, Lambda_C_hat, Lambda_N_hat, tau_C, tau_N, sigma_sq_hat, P_C, v_0 = 1, sigma_sq_0 = 1, N_mc = 100L, rho_C = 1, rho_N = 1) {
     .Call(`_BASIL_posterior_samples`, Y, Lambda_C_hat, Lambda_N_hat, tau_C, tau_N, sigma_sq_hat, P_C, v_0, sigma_sq_0, N_mc, rho_C, rho_N)

@@ -50,6 +50,44 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// sample_Lambda_outer
+arma::cube sample_Lambda_outer(arma::cube Lambda_samples);
+RcppExport SEXP _BASIL_sample_Lambda_outer(SEXP Lambda_samplesSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::cube >::type Lambda_samples(Lambda_samplesSEXP);
+    rcpp_result_gen = Rcpp::wrap(sample_Lambda_outer(Lambda_samples));
+    return rcpp_result_gen;
+END_RCPP
+}
+// sample_latent_factors
+List sample_latent_factors(arma::mat Y, arma::cube Lambda_samples, arma::vec sigma_sq_samples);
+RcppExport SEXP _BASIL_sample_latent_factors(SEXP YSEXP, SEXP Lambda_samplesSEXP, SEXP sigma_sq_samplesSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::mat >::type Y(YSEXP);
+    Rcpp::traits::input_parameter< arma::cube >::type Lambda_samples(Lambda_samplesSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type sigma_sq_samples(sigma_sq_samplesSEXP);
+    rcpp_result_gen = Rcpp::wrap(sample_latent_factors(Y, Lambda_samples, sigma_sq_samples));
+    return rcpp_result_gen;
+END_RCPP
+}
+// compute_covariance_posterior_samples_cc
+List compute_covariance_posterior_samples_cc(const arma::cube& Lambda_samples, const arma::vec& sigma_sq_samples, bool samples, bool only_low_rank);
+RcppExport SEXP _BASIL_compute_covariance_posterior_samples_cc(SEXP Lambda_samplesSEXP, SEXP sigma_sq_samplesSEXP, SEXP samplesSEXP, SEXP only_low_rankSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::cube& >::type Lambda_samples(Lambda_samplesSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type sigma_sq_samples(sigma_sq_samplesSEXP);
+    Rcpp::traits::input_parameter< bool >::type samples(samplesSEXP);
+    Rcpp::traits::input_parameter< bool >::type only_low_rank(only_low_rankSEXP);
+    rcpp_result_gen = Rcpp::wrap(compute_covariance_posterior_samples_cc(Lambda_samples, sigma_sq_samples, samples, only_low_rank));
+    return rcpp_result_gen;
+END_RCPP
+}
 // compute_B
 arma::mat compute_B(const arma::mat& Lambda, const double& sigma_sq);
 RcppExport SEXP _BASIL_compute_B(SEXP LambdaSEXP, SEXP sigma_sqSEXP) {
@@ -89,6 +127,9 @@ static const R_CallMethodDef CallEntries[] = {
     {"_BASIL_compute_correlation_posterior_samples_cc", (DL_FUNC) &_BASIL_compute_correlation_posterior_samples_cc, 3},
     {"_BASIL_compute_Gamma_samples", (DL_FUNC) &_BASIL_compute_Gamma_samples, 3},
     {"_BASIL_compute_Psi_samples", (DL_FUNC) &_BASIL_compute_Psi_samples, 3},
+    {"_BASIL_sample_Lambda_outer", (DL_FUNC) &_BASIL_sample_Lambda_outer, 1},
+    {"_BASIL_sample_latent_factors", (DL_FUNC) &_BASIL_sample_latent_factors, 3},
+    {"_BASIL_compute_covariance_posterior_samples_cc", (DL_FUNC) &_BASIL_compute_covariance_posterior_samples_cc, 4},
     {"_BASIL_compute_B", (DL_FUNC) &_BASIL_compute_B, 2},
     {"_BASIL_posterior_samples", (DL_FUNC) &_BASIL_posterior_samples, 12},
     {NULL, NULL, 0}

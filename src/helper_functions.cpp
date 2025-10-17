@@ -179,6 +179,167 @@ arma::cube compute_Psi_samples(
   return Psi_samples;
 }
 
+
+//' Compute outer products of loading matrices across posterior samples
+//'
+//' For each posterior sample of the loading matrix Lambda, this function
+//' computes the outer product Lambda * Lambda^T.
+//'
+//' @param Lambda_samples Array of loading matrix posterior samples
+//'   (genes × k × n_samples).
+//'
+//' @return An array of outer product matrices (genes × genes × n_samples).
+//'
+//' @export
+//'
+// [[Rcpp::export]]
+arma::cube sample_Lambda_outer(arma::cube Lambda_samples){
+
+  int n_MC = Lambda_samples.n_slices;
+  int k = Lambda_samples.n_cols;
+  int p = Lambda_samples.n_rows;
+
+  arma::mat Lambda(p, k);
+  arma::mat Lambda_outer(p, p);
+  arma::cube Lambda_outer_samples(p, p, n_MC);
+
+  for(int s=0; s<n_MC; ++s) {
+    Lambda = Lambda_samples.slice(s);
+    Lambda_outer = Lambda * Lambda.t();
+    Lambda_outer_samples.slice(s) = Lambda_outer;
+  }
+
+  return Lambda_outer_samples;
+}
+
+
+//' Sample latent factors from their posterior distribution
+//'
+//' @param Y Numeric matrix of gene expression data (samples × genes).
+//' @param Lambda_samples Array of loading matrix posterior samples
+//'   (genes × k × n_samples).
+//' @param sigma_sq_samples Vector of error variance posterior samples
+//'   (length n_samples).
+//' @return A list containing:
+//'   \item{M_mean}{Posterior mean of the latent factor matrix (samples × k).}
+//'   \item{M_samples}{Array of latent factor posterior samples (samples × k × n_samples).}
+//'
+//' @export
+//'
+// [[Rcpp::export]]
+List sample_latent_factors(
+    arma::mat Y, arma::cube Lambda_samples, arma::vec sigma_sq_samples){
+
+  int n_MC = Lambda_samples.n_slices;
+  int k = Lambda_samples.n_cols;
+  int p = Lambda_samples.n_rows;
+  int n = Y.n_rows;
+
+  arma::mat M_mean(n, k);
+  arma::cube M_samples(n, k, n_MC);
+  double sigma_sq;
+  arma::mat Lambda(p, k);
+  arma::mat prec_mat(k, k);
+
+  arma::mat U;
+  arma::vec d;
+  arma::mat V;
+  arma::vec inv_d;
+  arma::vec sqrt_inv_d;
+  arma::mat var_mat(k,k);
+  arma::mat var_sqrt(k,k);
+  arma::mat mean_t(n, k);
+  arma::mat noise(n, k);
+
+  for(int s=0; s<n_MC; ++s) {
+
+    sigma_sq = sigma_sq_samples(s);
+    Lambda = Lambda_samples.slice(s);
+    prec_mat = arma::eye(k,k) + 1/sigma_sq * (Lambda.t() * Lambda);
+
+    svd(U, d, V, prec_mat);
+    // var_mat = U * diag(1/d) * U^T
+    inv_d = 1.0 / d;
+    var_mat = U * diagmat(inv_d) * U.t();
+    // var_sqrt = U * diag(sqrt(1/d)) * U^T
+    sqrt_inv_d = sqrt(1.0 / d);
+    var_sqrt = U * diagmat(sqrt_inv_d) * U.t();
+    mean_t = (1.0 / sigma_sq) * Y * Lambda * var_mat;
+
+    M_mean += mean_t;
+    noise = arma::randn(n, k);
+    M_samples.slice(s) = mean_t + noise * var_sqrt;
+  }
+
+  M_mean = M_mean / n_MC;
+
+  return List::create(
+    Named("M_mean") = M_mean,
+    Named("M_samples") = M_samples
+  );
+}
+
+
+//' Compute posterior samples of the gene covariance matrix
+//'
+//' Generates posterior samples of the gene-gene covariance matrix from
+//' posterior samples of the loading matrix and error variance. The covariance
+//' can be decomposed as Cov(Y) = Lambda * Lambda^T + sigma_sq * I, where
+//' Lambda * Lambda^T is the low-rank component and sigma_sq * I is the
+//' diagonal noise component.
+//'
+//' @param Lambda_samples Array of loading matrix posterior samples
+//'   (genes × k × n_samples).
+//' @param sigma_sq_samples Vector of error variance posterior samples
+//'   (length n_samples).
+//' @param samples Logical flag indicating whether to return all posterior
+//'   samples. If TRUE (default), returns both individual covariance matrices
+//'   for each sample and the posterior mean. If FALSE, returns only the
+//'   posterior mean covariance matrix, which is faster and uses less memory.
+//' @param only_low_rank Logical flag indicating whether to return only the
+//'   low-rank component Lambda * Lambda^T (if TRUE) or the full covariance
+//'   including the error variance term (if FALSE, default).
+//'
+//' @return A list containing:
+//'   \item{posterior_mean}{Posterior mean of the covariance matrix (genes × genes).}
+//'   \item{posterior_samples}{(Only if samples = TRUE) Array of covariance matrix
+//'     posterior samples (genes × genes × n_samples).}
+//'
+//' @export
+//'
+// [[Rcpp::export]]
+List compute_covariance_posterior_samples_cc(
+    const arma::cube& Lambda_samples, const arma::vec& sigma_sq_samples,
+    bool samples = true, bool only_low_rank = false) {
+  int p     = Lambda_samples.n_rows;
+  int n_MC  = Lambda_samples.n_slices;
+
+  arma::mat cov_mean(p, p, fill::zeros);
+  arma::cube cov_samples;
+  if (samples) cov_samples.set_size(p, p, n_MC);
+
+  for (int t = 0; t < n_MC; ++t) {
+    const arma::mat& L_t = Lambda_samples.slice(t);
+    arma::mat cov_t = L_t * L_t.t();
+    if (!only_low_rank) {
+      cov_t.diag() += sigma_sq_samples[t];
+    }
+    cov_mean += cov_t / static_cast<double>(n_MC);
+    if (samples)  {
+      cov_samples.slice(t) = std::move(cov_t);
+    }
+  }
+
+  Rcpp::List out = Rcpp::List::create(
+    Rcpp::_["posterior_mean"] = cov_mean
+  );
+  if (samples) {
+    out["posterior_samples"] = cov_samples;
+  }
+  return out;
+}
+
+
 //' Internal helper: Compute B matrix
 //' @keywords internal
 // [[Rcpp::export]]
@@ -201,7 +362,7 @@ arma::mat compute_B(const arma::mat& Lambda, const double& sigma_sq) {
 }
 
 
-//' Internal helper: Compute B matrix
+//' Internal helper: posterior samples
 //' @keywords internal
 // [[Rcpp::export]]
 List posterior_samples(const arma::mat& Y,

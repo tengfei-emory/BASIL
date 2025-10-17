@@ -2,7 +2,7 @@
 % Please edit documentation in R/RcppExports.R
 \name{posterior_samples}
 \alias{posterior_samples}
-\title{Internal helper: Compute B matrix}
+\title{Internal helper: posterior samples}
 \usage{
 posterior_samples(
   Y,
@@ -20,6 +20,6 @@ posterior_samples(
 )
 }
 \description{
-Internal helper: Compute B matrix
+Internal helper: posterior samples
 }
 \keyword{internal}

@@ -5,6 +5,8 @@
 .DS_Store
 .quarto
 inst/doc
-/doc/
 /Meta/
-doc
+/doc/
+
+# Vignette build folder
+doc/
