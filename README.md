@@ -18,5 +18,5 @@ Check out the [vignette](vignettes/vignette.pdf) for an example of the package u
 
 ## Reference
 
-Mauri, L., F. Stolf, A. H. Herring, C. Miller, and D.B. Dunson "Pathway-based Bayesian factor models for gene expression data"
+Mauri, L., Stolf, F., Herring, A. H., Miller, C., and Dunson, D. B.  "Pathway-based Bayesian factor models for gene expression data"
 
