@@ -6,7 +6,5 @@
 .quarto
 inst/doc
 /Meta/
-/doc/
 
 # Vignette build folder
-doc/
