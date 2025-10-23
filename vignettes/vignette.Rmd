@@ -2,7 +2,7 @@
 title: "BASIL analysis of RNA-seq data"
 author: "Federica Stolf and Lorenzo Mauri"
 date: "`r Sys.Date()`"
-output: pdf_document
+output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{BASIL analysis of RNA-seq data}
   %\VignetteEngine{knitr::rmarkdown}
@@ -105,8 +105,9 @@ Fit PLIER with the same number of factors.
 plier_result <- PLIER(t(Y), allPaths, k = k_hat, doCrossval = FALSE, scale = FALSE)
 
 # Compute PLIER covariance
-sigma_sqPLIER = mean((Y - t(PLresult$B) %*% t(PLresult$Z))^2)
-Cov_plier <- plier_result$Z %*% cov(t(plier_result$B)) %*% t(plier_result$Z)+ sigma_sqPLIER * diag(ncol(Y))
+sigma_sqPLIER <- mean((Y - t(plier_result$B) %*% t(plier_result$Z))^2)
+Cov_plier <- plier_result$Z %*% cov(t(plier_result$B)) %*% t(plier_result$Z) 
+Cov_plier <- Cov_plier + sigma_sqPLIER * diag(ncol(Y))
 Corr_plier <- cov2cor(Cov_plier)
 ```
 
