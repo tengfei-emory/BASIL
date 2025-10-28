@@ -176,11 +176,6 @@ corrWB <- grid.arrange(emp_corr_plot$gtable, basil_corr_plot$gtable,
   basilUQ_corr_plot$gtable, plier_corr_plot$gtable, ncol = 4)
 
 ## ----network, fig.width=8, fig.height=4---------------------------------------
-df_long <- melt(CorrBasil_mean[]) %>%
-  filter(value < 0.9999)
-df_sorted <- df_long %>%
-  arrange(desc(value))
-
 network_plot <- plot_gene_network(CorrBasil_mean_zeroed, n = 50)
 network_plot
 

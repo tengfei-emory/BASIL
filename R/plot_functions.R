@@ -24,9 +24,12 @@ plot_correlation_heatmap = function(data, title, cluster = FALSE, row_order = NU
 #'
 #' @param cor_mat A correlation matrix (genes × genes) with row and
 #'   column names indicating gene identifiers.
-#' @param n Integer, the number ofgenes to label in the network. Genes are
+#' @param n Integer, the number of genes to label in the network. Genes are
 #'   ranked by their total connection strength (sum of absolute correlations).
 #'   Default is 50.
+#' @param max_overlaps Maximum number of overlapping labels allowed. Default is 10.
+#'   Use \code{Inf} to show all labels or increase the value to display more labels
+#'   in dense networks.
 #'
 #' @return A ggraph object showing the gene co-expression network with:
 #'   \itemize{
@@ -38,7 +41,7 @@ plot_correlation_heatmap = function(data, title, cluster = FALSE, row_order = NU
 #'
 #' @export
 #'
-plot_gene_network <- function(cor_mat, n = 50){
+plot_gene_network <- function(cor_mat, n = 50, max_overlaps = 10){
   mode(cor_mat) <- "numeric"
   C <- (cor_mat + t(cor_mat))/2
   diag(C) <- 1
@@ -100,7 +103,8 @@ plot_gene_network <- function(cor_mat, n = 50){
     geom_node_point(aes(color = cluster, size = strength)) +
     scale_color_manual(values = clu_cols, name = "Cluster") +
     scale_size_continuous(name = "Node strength", range = c(1, 3)) +
-    geom_node_text(aes(label = label), repel = TRUE, size = 3) +
+    geom_node_text(aes(label = label), repel = TRUE, size = 3, na.rm = TRUE,
+                   max.overlaps = max_overlaps) +
     theme_void() +
     ggtitle("Gene co-expression network")  +
     theme(legend.position = "none")

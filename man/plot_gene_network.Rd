@@ -4,15 +4,19 @@
 \alias{plot_gene_network}
 \title{Plot gene co-expression network from correlation matrix}
 \usage{
-plot_gene_network(cor_mat, n = 50)
+plot_gene_network(cor_mat, n = 50, max_overlaps = 10)
 }
 \arguments{
 \item{cor_mat}{A correlation matrix (genes × genes) with row and
 column names indicating gene identifiers.}
 
-\item{n}{Integer, the number ofgenes to label in the network. Genes are
+\item{n}{Integer, the number of genes to label in the network. Genes are
 ranked by their total connection strength (sum of absolute correlations).
 Default is 50.}
+
+\item{max_overlaps}{Maximum number of overlapping labels allowed. Default is 10.
+Use \code{Inf} to show all labels or increase the value to display more labels
+in dense networks.}
 }
 \value{
 A ggraph object showing the gene co-expression network with:
