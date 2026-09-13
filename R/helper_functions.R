@@ -19,7 +19,6 @@ compute_jic <- function(Y, svd_Y, k){
   return(jic)
 }
 
-# questa la usiamo? Boh
 compute_posterior_samples <- function(
     Y, Lambda_C, Lambda_N, tau_C, tau_N, sigma_sq, U_C,
     v0=1, sigma_sq_0=1, n_MC=100
