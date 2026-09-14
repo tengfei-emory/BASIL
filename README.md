@@ -18,5 +18,5 @@ Check out the [vignette](https://raw.githack.com/federicastolf/BASIL/master/doc/
 
 ## Reference
 
-Mauri, L., Stolf, F., Herring, A. H., Miller, C., and Dunson, D. B.  "Pathway-based Bayesian factor models for gene expression data"
+"Pathway-based Bayesian factor models for omics data"
 
