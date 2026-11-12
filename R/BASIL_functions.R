@@ -69,9 +69,9 @@ BASIL_point_estimates <- function(Y, C, k = NA, k_max = 50, v0 = 1, sigma_sq0 = 
   tCCt <- crossprod(C)
   s_cross_C <- svd(tCCt)
   q <- sum(s_cross_C$d>(0.1)^7)
-  V_C <- s_cross_C$u[,1:q]
-  D_C <- diag(as.vector(sqrt(s_cross_C$d[1:q])))
-  D_C_inv <- diag(as.vector(1/sqrt(s_cross_C$d[1:q])))
+  V_C <- s_cross_C$u[,1:q, drop = FALSE]
+  D_C <- diag(as.vector(sqrt(s_cross_C$d[1:q])), nrow = q)
+  D_C_inv <- diag(as.vector(1/sqrt(s_cross_C$d[1:q])), nrow = q)
   U_C <- C %*% V_C %*% D_C_inv
   P_C <- tcrossprod(U_C)
   Q_C <- diag(1, p, p) - P_C

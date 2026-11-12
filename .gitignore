@@ -9,3 +9,4 @@ inst/doc
 
 # Vignette build folder
 /doc/
+pipeline/example_output/
