@@ -105,6 +105,80 @@ Selection (`rule`): `"ci"` keeps edges whose interval excludes zero and
 `edges_all.csv` has every pair, so other rules can be applied later with
 `select_edges()`.
 
+## Settings guide
+
+Every setting of `run_basil_pipeline()` has a default, so a first run needs
+only `data` and `types`. The settings fall into three groups: how the model is
+fitted, what an edge is and how it is summarised, and which edges are reported.
+Only the first group changes the fit; the other two can be changed afterwards
+without refitting, by calling `basil_edges()` and `select_edges()` on the result.
+
+### Settings most likely to matter
+
+| Setting | Default | What it controls | When to change it |
+|---|---|---|---|
+| `k` | chosen automatically | Number of latent factors, i.e. how many shared patterns of variation the model may use to explain correlations. Too few and real edges are missed or blurred together; too many and noise is modelled as signal. | Leave automatic first. The log prints the chosen value. Then rerun with `k - 1` and `k + 1` and check that the edges you care about survive (see below). |
+| `edge_type` | `"correlation"` | Whether an edge is a marginal correlation or a partial correlation (association after accounting for all other features). | Use `"partial"` if you want glasso-like "direct" edges, and treat those intervals as exploratory. |
+| `rule` | `"ci"` | How edges are picked for the reported network. `"ci"`: the credible interval excludes zero. `"bfdr"`: the expected share of reported edges that are negligible is at most `alpha`. | Use `"bfdr"` when you report many edges and want a statement about the list as a whole, not edge by edge. |
+| `min_abs` | `0.1` | Smallest posterior-mean edge worth reporting. Applied with either rule. | Raise (0.2-0.3) for a sparser, more readable network. Set to 0 to keep every edge that passes the rule. |
+| `covariates` | none | Variables removed from every feature before fitting. | Add batch, age, sex or anything else that could create correlations you do not want as edges. |
+
+### Model fitting
+
+| Setting | Default | What it controls | When to change it |
+|---|---|---|---|
+| `k_max` | components explaining 80% of variance | Largest `k` the automatic search tries. Ignored when `k` is given. | Lower it if the search is slow or picks a value at the top of the range. |
+| `n_MC` | `1000` | Number of posterior draws. It does not change the fit, only how precisely interval ends and probabilities are computed. With 1000 draws each end of a 95% interval rests on 25 draws. | 2000-5000 for final results. Run time and memory grow in proportion. |
+| `equalize_noise` | `TRUE` | Rescales features once so their unexplained variance is equal, which is what BASIL assumes. See "Calibration and limits". | Set `FALSE` only to reproduce plain BASIL on z-scores. |
+| `inverse_normal` | `FALSE` | Replaces each feature's values by normal scores of their ranks, so correlations behave like Spearman correlations. | Turn on if features remain skewed or have outliers after the log transform. |
+| `seed` | `1` | Random seed for the posterior draws. | Results are reproducible with the same seed; changing it shows how much Monte Carlo noise there is. |
+
+### Edge summaries
+
+| Setting | Default | What it controls | When to change it |
+|---|---|---|---|
+| `level` | `0.95` | Width of the credible interval (`lower`, `upper`), and therefore how strict `rule = "ci"` is. | `0.99` for a stricter network, `0.90` for a more liberal one. |
+| `delta` | `0.1` | The size below which an edge counts as negligible. Used only for the `prob_gt_delta` and `bfdr` columns, so it matters only with `rule = "bfdr"`. | Set it to the smallest correlation you would consider biologically interesting. |
+| `alpha` | `0.05` | Target Bayesian false discovery rate for `rule = "bfdr"`. | `0.01` for a stricter list, `0.10` for a more liberal one. |
+
+### Data preparation
+
+These are per assay and go in `prep_args`, e.g.
+`prep_args = list(bile_acids = list(max_censored = 0.3))`.
+
+| Setting | Default | Applies to | What it controls |
+|---|---|---|---|
+| `max_censored` | `0.5` | all types | Features with more than this fraction below LOQ / below LOD / missing are dropped. Lower it (0.2-0.3) if heavily imputed features worry you: imputed values are identical across samples and distort correlations. |
+| `lod` | none | `"concentration"`, `"npx"` | Limit of detection, one number or a named vector by feature. For concentrations, values below it are replaced by `lod/2`. For NPX it is only used to count and filter. |
+| `na_is_censored` | `TRUE` | `"concentration"` | `TRUE`: a missing value means "below LOQ". `FALSE`: it means "not measured" and is filled with the feature median. |
+| `min_count`, `min_prop` | `10`, `0.2` | `"counts"` | A gene is kept if it has at least `min_count` reads in at least `min_prop` of samples. |
+
+### Fixed by the pipeline
+
+- BASIL's prior settings for the noise variance (`v0 = 1`, `sigma_sq0 = 1`) are
+  left at the package defaults. They count as one prior observation against
+  n x p data values, so they have no practical effect.
+- The shrinkage strengths inside and outside the feature sets (`tau_gamma`,
+  `tau_psi`) and the coverage correction (`rho`) are estimated from the data by
+  BASIL. The log prints them. A ratio `tau_gamma/tau_psi` above 1 means the
+  feature sets explain more of the shared variation than an arbitrary grouping
+  would.
+- Feature sets with fewer than 2 matched features are dropped, and one
+  indicator per assay is added. Call `basil_membership()` directly to change
+  either.
+
+### Checking sensitivity to `k`
+
+```r
+fits <- lapply(c(4, 5, 6), function(k)
+  run_basil_pipeline(data, types, sets = my_sets, k = k, verbose = FALSE))
+keys <- lapply(fits, function(r) paste(r$selected$feature1, r$selected$feature2))
+length(Reduce(intersect, keys))   # edges selected at every k
+sapply(keys, length)              # edges selected at each k
+```
+
+Edges that appear at every `k` are the ones to trust.
+
 ## Calibration and limits
 
 Checked on simulated factor-model data with unequal noise across features and
