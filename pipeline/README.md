@@ -105,6 +105,27 @@ Selection (`rule`): `"ci"` keeps edges whose interval excludes zero and
 `edges_all.csv` has every pair, so other rules can be applied later with
 `select_edges()`.
 
+## Plots
+
+With `out_dir` set, three plots are written:
+
+- `edge_forest.pdf`: the strongest selected edges with their credible intervals.
+- `network.pdf`: the 300 strongest selected edges; nodes coloured by assay.
+- `edge_heatmap.pdf`: all features against all features, non-selected edges
+  blank. The margins carry one track for the assay and one track per feature
+  set, marking the set's members. Sets can overlap, so each has its own track.
+  By default the 8 largest sets are shown; choose others with
+  `heatmap_sets = c("primary_BA", "IL6_signaling")`, or `character(0)` for none.
+
+The plots can be redrawn from a result with `plot_edge_forest()`,
+`plot_basil_network()` and `plot_edge_heatmap()`, e.g.
+
+```r
+h <- plot_edge_heatmap(res$matrices, res$selected, res$prep$features,
+                       C = res$C, show_sets = c("primary_BA", "secondary_BA"))
+grid::grid.newpage(); grid::grid.draw(h$gtable)
+```
+
 ## Settings guide
 
 Every setting of `run_basil_pipeline()` has a default, so a first run needs

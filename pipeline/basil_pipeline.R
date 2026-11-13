@@ -475,19 +475,44 @@ plot_basil_network <- function(edges, features = NULL, max_edges = 300, label_to
 }
 
 #' Heatmap of posterior-mean edges, with non-selected edges set to zero
-plot_edge_heatmap <- function(ed, selected, features = NULL, title = NULL) {
+#'
+#' @param features `features` data.frame; adds an assay annotation track.
+#' @param C membership matrix from basil_membership(); adds one annotation
+#'   track per feature set (sets can overlap, so each gets its own track).
+#' @param show_sets names of the sets to show. NULL = the `max_sets` largest.
+#'   Use character(0) for none.
+plot_edge_heatmap <- function(ed, selected, features = NULL, C = NULL,
+                              show_sets = NULL, max_sets = 8, title = NULL) {
   .need("pheatmap")
   A <- ed$mean; A[] <- 0
   idx <- cbind(match(selected$feature1, rownames(A)), match(selected$feature2, rownames(A)))
   A[idx] <- selected$mean; A[idx[, 2:1, drop = FALSE]] <- selected$mean
   lim <- max(abs(A), 1e-8)
-  ann <- if (is.null(features)) NA else
-    data.frame(assay = features$modality, row.names = features$feature)
+  ann <- data.frame(row.names = rownames(A))
+  ann_col <- list()
+  if (!is.null(C)) {
+    C <- C[rownames(A), !grepl("^assay:", colnames(C)), drop = FALSE]
+    if (is.null(show_sets))
+      show_sets <- utils::head(colnames(C)[order(-colSums(C))], max_sets)
+    bad <- setdiff(show_sets, colnames(C))
+    if (length(bad)) stop("Unknown or unused feature set(s): ", paste(bad, collapse = ", "))
+    pal <- grDevices::hcl.colors(max(length(show_sets), 3), "Dark 3")
+    for (i in rev(seq_along(show_sets))) {       # pheatmap draws the last column first
+      s <- show_sets[i]
+      ann[[s]] <- factor(ifelse(C[, s] > 0, "member", NA), levels = "member")
+      ann_col[[s]] <- c(member = pal[i])
+    }
+  }
+  if (!is.null(features))
+    ann$assay <- features$modality[match(rownames(A), features$feature)]
+  if (ncol(ann) == 0) ann <- NA
   pheatmap::pheatmap(A, breaks = seq(-lim, lim, length.out = 52),
                      color = grDevices::colorRampPalette(c("#4575B4", "white", "#D73027"))(51),
                      annotation_row = ann, annotation_col = ann, border_color = NA,
+                     annotation_colors = if (length(ann_col)) ann_col else NA,
                      show_rownames = nrow(A) <= 60, show_colnames = nrow(A) <= 60,
-                     treeheight_row = 0, treeheight_col = 0, main = title, silent = TRUE)
+                     treeheight_row = 0, treeheight_col = 0,
+                     main = if (is.null(title)) NA else title, silent = TRUE)
 }
 
 # -----------------------------------------------------------------------------
@@ -501,6 +526,8 @@ plot_edge_heatmap <- function(ed, selected, features = NULL, title = NULL) {
 #' @param k,k_max,n_MC,seed,equalize_noise see basil_fit().
 #' @param edge_type,level,delta see basil_edges().
 #' @param rule,alpha,min_abs see select_edges().
+#' @param heatmap_sets feature sets shown as annotation tracks in the heatmap
+#'   (NULL = the 8 largest; character(0) = none). See plot_edge_heatmap().
 #' @param out_dir if given, tables / plots / an .rds of the result are written there.
 #' @return list(prep, C, fit, edges (all), selected, matrices, settings)
 run_basil_pipeline <- function(data, types, sets = NULL, covariates = NULL,
@@ -510,6 +537,7 @@ run_basil_pipeline <- function(data, types, sets = NULL, covariates = NULL,
                                edge_type = c("correlation", "partial"),
                                level = 0.95, delta = 0.1,
                                rule = c("ci", "bfdr"), alpha = 0.05, min_abs = 0.1,
+                               heatmap_sets = NULL,
                                out_dir = NULL, seed = 1, verbose = TRUE) {
   edge_type <- match.arg(edge_type); rule <- match.arg(rule)
   prep <- basil_prepare(data, types, prep_args, covariates, inverse_normal, verbose)
@@ -546,9 +574,10 @@ run_basil_pipeline <- function(data, types, sets = NULL, covariates = NULL,
                       plot_basil_network(sel, prep$features, title = paste0(
                         lab, if (nrow(sel) > 300) ", 300 strongest edges" else "")),
                       width = 10, height = 8)
-      grDevices::pdf(file.path(out_dir, "edge_heatmap.pdf"), width = 9, height = 8)
+      grDevices::pdf(file.path(out_dir, "edge_heatmap.pdf"), width = 11, height = 9)
       grid::grid.newpage()
-      grid::grid.draw(plot_edge_heatmap(ed, sel, prep$features, title = lab)$gtable)
+      grid::grid.draw(plot_edge_heatmap(ed, sel, prep$features, C = C,
+                                        show_sets = heatmap_sets, title = lab)$gtable)
       grDevices::dev.off()
     }
     .msg(verbose, "Results written to ", normalizePath(out_dir))
