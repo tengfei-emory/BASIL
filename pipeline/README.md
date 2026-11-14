@@ -163,13 +163,44 @@ With `out_dir` set, three plots are written:
   set, marking the set's members. Sets can overlap, so each has its own track.
   By default the 8 largest sets are shown; choose others with
   `heatmap_sets = c("primary_BA", "IL6_signaling")`, or `character(0)` for none.
+  Extra tracks of your own are added with `annotation` (next section).
+
+### Your own annotation tracks
+
+`annotation` adds further tracks to the heatmap margins. It is a named list
+with one entry per track; each entry is a vector of values named by feature.
+Values can be categories or numbers. Features not named are left blank, so a
+track may cover one assay only.
+
+```r
+ann <- list(
+  BA_class    = c(CA = "primary", CDCA = "primary", DCA = "secondary", LCA = "secondary"),
+  conjugation = c(GCA = "glycine", TCA = "taurine", CA = "free"),
+  phylum      = c(Bacteroides_fragilis = "Bacteroidota", Blautia_obeum = "Bacillota")
+)
+cols <- list(BA_class = c(primary = "#E69F00", secondary = "#7B3294"))   # optional
+
+res <- run_basil_pipeline(data, types, sets = my_sets, out_dir = "results",
+                          annotation = ann, annotation_colors = cols)
+```
+
+`annotation_colors` is optional and can cover some tracks only; the rest get
+default colours. For a categorical track give one colour per category, named
+by category. It also accepts `assay` and feature-set names, to change their
+default colours, e.g. `list(assay = c(olink = "steelblue", rna = "tomato"))`
+(all assays must then be given a colour).
+
+Annotations describe features, not samples, because both axes of the heatmap
+are features. Sample-level variables such as sex or batch cannot be shown
+here; they go in `covariates`.
 
 The plots can be redrawn from a result with `plot_edge_forest()`,
 `plot_basil_network()` and `plot_edge_heatmap()`, e.g.
 
 ```r
 h <- plot_edge_heatmap(res$matrices, res$selected, res$prep$features,
-                       C = res$C, show_sets = c("primary_BA", "secondary_BA"))
+                       C = res$C, show_sets = c("primary_BA", "secondary_BA"),
+                       annotation = ann, annotation_colors = cols)
 grid::grid.newpage(); grid::grid.draw(h$gtable)
 ```
 

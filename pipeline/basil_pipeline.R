@@ -508,8 +508,18 @@ plot_basil_network <- function(edges, features = NULL, max_edges = 300, label_to
 #'   track per feature set (sets can overlap, so each gets its own track).
 #' @param show_sets names of the sets to show. NULL = the `max_sets` largest.
 #'   Use character(0) for none.
+#' @param annotation extra feature annotations: a named list with one entry per
+#'   track. Each entry is a vector of values (categories or numbers) named by
+#'   feature, e.g. list(BA_class = c(CA = "primary", DCA = "secondary")).
+#'   Features not named in a vector are left blank.
+#' @param annotation_colors optional colours, as a named list keyed by track
+#'   name: for a categorical track a vector of colours named by category,
+#'   e.g. list(BA_class = c(primary = "gold", secondary = "purple")); for a
+#'   numeric track a vector of colours to interpolate. Also accepts "assay"
+#'   and feature-set names to override their default colours.
 plot_edge_heatmap <- function(ed, selected, features = NULL, C = NULL,
-                              show_sets = NULL, max_sets = 8, title = NULL) {
+                              show_sets = NULL, max_sets = 8, annotation = NULL,
+                              annotation_colors = NULL, title = NULL) {
   .need("pheatmap")
   A <- ed$mean; A[] <- 0
   idx <- cbind(match(selected$feature1, rownames(A)), match(selected$feature2, rownames(A)))
@@ -530,16 +540,65 @@ plot_edge_heatmap <- function(ed, selected, features = NULL, C = NULL,
       ann_col[[s]] <- c(member = pal[i])
     }
   }
-  if (!is.null(features))
+  if (!is.null(annotation)) {
+    if (!is.list(annotation) || is.null(names(annotation)) || any(names(annotation) == ""))
+      stop("`annotation` must be a named list, e.g. list(BA_class = c(CA = \"primary\", ...)).")
+    clash <- intersect(names(annotation), c(names(ann), "assay"))
+    if (length(clash)) stop("Annotation name(s) already used by a feature set or 'assay': ",
+                            paste(clash, collapse = ", "))
+    alt <- if (is.null(features)) rownames(A) else
+      features$name[match(rownames(A), features$feature)]
+    for (a in rev(names(annotation))) {
+      v <- annotation[[a]]
+      if (is.factor(v)) v <- stats::setNames(as.character(v), names(v))
+      if (is.null(names(v)))
+        stop("Annotation '", a, "' must be a vector named by feature.")
+      i <- match(rownames(A), names(v))
+      i[is.na(i)] <- match(alt, names(v))[is.na(i)]
+      if (all(is.na(i))) stop("Annotation '", a, "': no names match any feature.")
+      ann[[a]] <- unname(v[i])
+      if (!is.numeric(ann[[a]])) {
+        lev <- sort(unique(stats::na.omit(as.character(ann[[a]]))))
+        ann_col[[a]] <- stats::setNames(grDevices::hcl.colors(max(length(lev), 3), "Set 2")[seq_along(lev)], lev)
+      }
+    }
+    ann <- ann[, c(setdiff(names(ann), names(annotation)), rev(names(annotation))), drop = FALSE]
+  }
+  if (!is.null(features)) {
     ann$assay <- features$modality[match(rownames(A), features$feature)]
+    lev <- unique(features$modality)
+    ann_col$assay <- stats::setNames(grDevices::hcl.colors(max(length(lev), 3), "Dark 2")[seq_along(lev)], lev)
+  }
+  if (!is.null(annotation_colors)) {
+    bad <- setdiff(names(annotation_colors), names(ann))
+    if (length(bad)) stop("`annotation_colors` given for unknown track(s): ", paste(bad, collapse = ", "))
+    for (a in names(annotation_colors)) {
+      cols <- annotation_colors[[a]]
+      if (!is.numeric(ann[[a]])) {
+        miss <- setdiff(unique(stats::na.omit(as.character(ann[[a]]))), names(cols))
+        if (length(miss)) stop("No colour given for ", a, " = ", paste(miss, collapse = ", "))
+      }
+      ann_col[[a]] <- cols
+    }
+  }
   if (ncol(ann) == 0) ann <- NA
-  pheatmap::pheatmap(A, breaks = seq(-lim, lim, length.out = 52),
+  h <- pheatmap::pheatmap(A, breaks = seq(-lim, lim, length.out = 52),
                      color = grDevices::colorRampPalette(c("#4575B4", "white", "#D73027"))(51),
                      annotation_row = ann, annotation_col = ann, border_color = NA,
                      annotation_colors = if (length(ann_col)) ann_col else NA,
                      show_rownames = nrow(A) <= 60, show_colnames = nrow(A) <= 60,
                      treeheight_row = 0, treeheight_col = 0,
                      main = if (is.null(title)) NA else title, silent = TRUE)
+  # pheatmap lists row and column annotations twice when laying out the legend,
+  # which pushes it half-way down the page: move it back to the top.
+  k <- which(h$gtable$layout$name == "annotation_legend")
+  if (length(k) == 1) {
+    ch <- h$gtable$grobs[[k]]$children
+    up <- grid::unit(1, "npc") - ch[[1]]$y
+    for (j in seq_along(ch)) ch[[j]]$y <- ch[[j]]$y + up
+    h$gtable$grobs[[k]]$children <- ch
+  }
+  h
 }
 
 # -----------------------------------------------------------------------------
@@ -555,6 +614,8 @@ plot_edge_heatmap <- function(ed, selected, features = NULL, C = NULL,
 #' @param rule,alpha,min_abs see select_edges().
 #' @param heatmap_sets feature sets shown as annotation tracks in the heatmap
 #'   (NULL = the 8 largest; character(0) = none). See plot_edge_heatmap().
+#' @param annotation,annotation_colors extra feature annotation tracks for the
+#'   heatmap and their colours. See plot_edge_heatmap().
 #' @param out_dir if given, tables / plots / an .rds of the result are written there.
 #' @return list(prep, C, fit, edges (all), selected, matrices, settings)
 run_basil_pipeline <- function(data, types, sets = NULL, covariates = NULL,
@@ -564,7 +625,8 @@ run_basil_pipeline <- function(data, types, sets = NULL, covariates = NULL,
                                edge_type = c("correlation", "partial"),
                                level = 0.95, delta = 0.1,
                                rule = c("ci", "bfdr"), alpha = 0.05, min_abs = 0.1,
-                               heatmap_sets = NULL,
+                               heatmap_sets = NULL, annotation = NULL,
+                               annotation_colors = NULL,
                                out_dir = NULL, seed = 1, verbose = TRUE) {
   edge_type <- match.arg(edge_type); rule <- match.arg(rule)
   prep <- basil_prepare(data, types, prep_args, covariates, inverse_normal, verbose)
@@ -601,10 +663,19 @@ run_basil_pipeline <- function(data, types, sets = NULL, covariates = NULL,
                       plot_basil_network(sel, prep$features, title = paste0(
                         lab, if (nrow(sel) > 300) ", 300 strongest edges" else "")),
                       width = 10, height = 8)
-      grDevices::pdf(file.path(out_dir, "edge_heatmap.pdf"), width = 11, height = 9)
+      # legend length grows with the number of tracks: make the page tall enough
+      n_sets <- if (is.null(heatmap_sets)) min(8, sum(!grepl("^assay:", colnames(C))))
+                else length(heatmap_sets)
+      leg <- 2 + length(unique(prep$features$modality)) + 3 * n_sets +
+        sum(vapply(annotation, function(v) 2 + if (is.numeric(v)) 5 else
+          length(unique(stats::na.omit(as.character(v)))), numeric(1)))
+      grDevices::pdf(file.path(out_dir, "edge_heatmap.pdf"), width = 11.5,
+                     height = max(9, 4 + 0.22 * leg))
       grid::grid.newpage()
       grid::grid.draw(plot_edge_heatmap(ed, sel, prep$features, C = C,
-                                        show_sets = heatmap_sets, title = lab)$gtable)
+                                        show_sets = heatmap_sets, annotation = annotation,
+                                        annotation_colors = annotation_colors,
+                                        title = lab)$gtable)
       grDevices::dev.off()
     }
     .msg(verbose, "Results written to ", normalizePath(out_dir))
