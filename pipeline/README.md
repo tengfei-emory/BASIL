@@ -51,6 +51,7 @@ pairwise edge.
 | `"npx"` | Olink NPX | no transform (NPX is log2); values below LOD are kept; sporadic NAs median-imputed |
 | `"counts"` | raw read counts | low-count filter (>= 10 reads in >= 20% of samples), log2-CPM |
 | `"normalized"` | expression already normalised but on the linear scale (normalised counts, CPM/TPM) | log2(x + 1) |
+| `"microbiome"` | taxon abundances from shotgun or amplicon sequencing, as raw counts or relative abundance | rare taxa pooled into "Other"; zeros replaced; centred log-ratio (CLR) |
 | `"none"` | anything already normalised and log-scaled | missing-value handling only |
 
 All types drop features with > 50% censored/missing (`max_censored`) or no
@@ -70,8 +71,54 @@ Do upstream, before the pipeline:
   thousands) and `"none"` if they are already log-transformed. `"counts"` is
   only for raw reads; on a small targeted panel its CPM step uses the panel
   total as library size, which is poor when a few genes dominate.
+- Microbiome: see the next section.
 - Repeated measures: samples are assumed independent. Use one sample per
   subject, or regress out subject before the pipeline.
+
+## Microbiome data (`type = "microbiome"`)
+
+Abundances from sequencing are compositional: each sample's values sum to a
+fixed total, so correlating log abundances directly creates edges that are not
+there. The `"microbiome"` type therefore uses the centred log-ratio (CLR): the
+log of each taxon relative to the sample's geometric mean.
+
+```r
+res <- run_basil_pipeline(
+  data  = list(microbiome = taxa, bile_acids = ba, scfa = scfa),
+  types = c(microbiome = "microbiome", bile_acids = "concentration",
+            scfa = "concentration"))
+```
+
+- Input is a samples x taxa table of raw counts or relative abundances
+  (fractions or percent), with 0 for undetected taxa. Both give the same CLR
+  values apart from zero replacement: 0.5 for counts, half the sample's
+  smallest non-zero value for relative abundance.
+- A CLR matrix you computed yourself goes in with `type = "none"`, which uses
+  the values as they are (no filtering of rare taxa, no further transform):
+  `types = c(microbiome = "none", ...)`. Filter rare taxa before computing the
+  CLR; any base of logarithm is fine.
+- Use one taxonomic level (species or genus). Mixing levels puts a genus and
+  its own species in the same table, and they correlate trivially.
+- Taxa with zeros in more than `max_censored` of samples (default 0.5) are not
+  analysed, but are pooled into an "Other" bin so the CLR is still taken over
+  the whole community. Change it with
+  `prep_args = list(microbiome = list(max_censored = 0.2))`.
+- Do not use `"counts"` or `"concentration"` for taxa. In a simulation with no
+  compositional correction (`"counts"`), about 90% of truly absent taxon-taxon
+  edges were selected; with `"microbiome"` about 3%.
+- Zeros still cost accuracy. In the same simulation, with about 18% zeros among
+  the kept taxa, absent edges stayed at about 3-4% selected, but the 95%
+  intervals covered true non-zero edges only about 70% (taxon-taxon) to 78%
+  (taxon-metabolite) of the time. Trust which edges are present more than
+  their exact size. A stricter filter (`max_censored = 0.2`) helped only
+  slightly in that simulation.
+- Detection depends on sequencing depth. Drop shallow samples, or add log depth
+  to `covariates`.
+- If absolute abundances are available (qPCR, spike-in, flow cytometry), scale
+  to absolute load and use `"concentration"`; the compositional problem then
+  does not arise.
+- Taxonomy (family, phylum) and function (SCFA producers, bile-acid
+  transformers) make natural feature sets.
 
 ## Feature sets (`sets`)
 

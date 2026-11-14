@@ -39,6 +39,12 @@
 #'   "counts"        raw sequencing counts. Low-count filter, then log2-CPM.
 #'   "normalized"    already normalised but still on the linear scale
 #'                   (normalised counts, CPM/TPM, ...): log2(x + 1) only.
+#'   "microbiome"    taxon (or gene-family) abundances from sequencing, as
+#'                   raw counts or relative abundances; one taxonomic level.
+#'                   Taxa with more than `max_censored` zeros are pooled into
+#'                   an "Other" bin, zeros are replaced (counts: 0.5; relative
+#'                   abundance: half the sample's smallest non-zero value),
+#'                   then centred log-ratio (CLR) over kept taxa + "Other".
 #'   "none"          already normalised and on a log-like scale.
 #' @param lod optional limit of detection: one number or a named vector by feature.
 #' @param max_censored drop features with more than this fraction censored /
@@ -48,7 +54,8 @@
 #' @param min_count,min_prop for "counts": keep features with at least
 #'   `min_count` reads in at least `min_prop` of samples.
 #' @return list(x = cleaned matrix, log = per-feature record of what was done)
-prep_modality <- function(x, type = c("concentration", "npx", "counts", "normalized", "none"),
+prep_modality <- function(x, type = c("concentration", "npx", "counts", "normalized",
+                                     "microbiome", "none"),
                           lod = NULL, max_censored = 0.5, na_is_censored = TRUE,
                           min_count = 10, min_prop = 0.2) {
   type <- match.arg(type)
@@ -100,6 +107,26 @@ prep_modality <- function(x, type = c("concentration", "npx", "counts", "normali
     if (any(x < 0, na.rm = TRUE))
       stop("Negative values in a 'normalized' assay: it looks log-transformed already. Use type = 'none'.")
     x <- log2(x + 1)
+  } else if (type == "microbiome") {
+    if (anyNA(x)) stop("Microbiome table contains NA; undetected taxa should be 0.")
+    if (any(x < 0))
+      stop("Negative values in a 'microbiome' assay: it looks transformed already (CLR / log). Use type = 'none'.")
+    if (any(rowSums(x) == 0)) stop("Samples with zero total abundance: ",
+                                   paste(rownames(x)[rowSums(x) == 0], collapse = ", "))
+    log$frac_censored <- colMeans(x == 0)
+    rare <- log$frac_censored > max_censored
+    comp <- x[, !rare, drop = FALSE]
+    if (ncol(comp) < 3) stop("Fewer than 3 taxa pass the prevalence filter; raise max_censored.")
+    other <- rowSums(x[, rare, drop = FALSE])
+    if (any(other > 0)) comp <- cbind(comp, .other = other)
+    is_count <- all(x == round(x))
+    for (i in seq_len(nrow(comp))) {
+      z <- comp[i, ] == 0
+      if (any(z)) comp[i, z] <- if (is_count) 0.5 else min(comp[i, !z]) / 2
+    }
+    lc <- log2(comp)
+    x[, !rare] <- (lc - rowMeans(lc))[, seq_len(sum(!rare)), drop = FALSE]
+    x[, rare] <- NA_real_                      # dropped below
   }
 
   drop <- log$kept & pmax(log$frac_censored, log$frac_missing *
