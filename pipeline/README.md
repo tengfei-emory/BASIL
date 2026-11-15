@@ -168,6 +168,10 @@ With `out_dir` set, three plots are written:
   By default the 8 largest sets are shown; choose others with
   `heatmap_sets = c("primary_BA", "IL6_signaling")`, or `character(0)` for none.
   Extra tracks of your own are added with `annotation` (next section).
+  With several assays, features are grouped by assay with a gap between
+  assays, so each off-diagonal block is one pair of assays; clustering is
+  done within each assay. `heatmap_split = FALSE` clusters all features
+  together instead.
   Feature names are printed for up to 200 features; above 60 the font
   shrinks and the page grows, so zoom in. Force them on or off with
   `heatmap_names = TRUE` / `FALSE`.

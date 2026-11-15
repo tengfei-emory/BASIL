@@ -522,6 +522,10 @@ plot_basil_network <- function(edges, features = NULL, max_edges = 300, label_to
 #'   Above 60 features the font shrinks, so draw on a large page
 #'   (run_basil_pipeline() sizes the PDF for you).
 #' @param fontsize_names font size of the feature names; NULL = automatic.
+#' @param split_by_assay if TRUE (default) and `features` has several assays,
+#'   features are grouped by assay with a gap between assays, and hierarchical
+#'   clustering is done within each assay only. FALSE = cluster all features
+#'   together.
 #' @param annotation extra feature annotations: a named list with one entry per
 #'   track. Each entry is a vector of values (categories or numbers) named by
 #'   feature, e.g. list(BA_class = c(CA = "primary", DCA = "secondary")).
@@ -534,7 +538,8 @@ plot_basil_network <- function(edges, features = NULL, max_edges = 300, label_to
 plot_edge_heatmap <- function(ed, selected, features = NULL, C = NULL,
                               show_sets = NULL, max_sets = 8, annotation = NULL,
                               annotation_colors = NULL, show_names = NULL,
-                              fontsize_names = NULL, title = NULL) {
+                              fontsize_names = NULL, split_by_assay = TRUE,
+                              title = NULL) {
   .need("pheatmap")
   A <- ed$mean; A[] <- 0
   idx <- cbind(match(selected$feature1, rownames(A)), match(selected$feature2, rownames(A)))
@@ -600,11 +605,25 @@ plot_edge_heatmap <- function(ed, selected, features = NULL, C = NULL,
   }
   if (ncol(ann) == 0) ann <- NA
   if (is.null(show_names)) show_names <- nrow(A) <= 200
+  gaps <- NULL
+  mod <- if (is.null(features)) NULL else features$modality[match(rownames(A), features$feature)]
+  split <- isTRUE(split_by_assay) && length(unique(mod)) > 1
+  if (split) {                             # order within each assay, assays in input order
+    ord <- unlist(lapply(unique(features$modality), function(m) {
+      i <- which(mod == m)
+      if (length(i) > 2) i[stats::hclust(stats::dist(A[i, , drop = FALSE]))$order] else i
+    }))
+    A <- A[ord, ord, drop = FALSE]
+    if (is.data.frame(ann)) ann <- ann[ord, , drop = FALSE]
+    gaps <- utils::head(cumsum(rle(mod[ord])$lengths), -1)
+  }
   if (is.null(fontsize_names)) fontsize_names <- max(5, min(10, 600 / nrow(A)))
   h <- pheatmap::pheatmap(A, breaks = seq(-lim, lim, length.out = 52),
                      color = grDevices::colorRampPalette(c("#4575B4", "white", "#D73027"))(51),
                      annotation_row = ann, annotation_col = ann, border_color = NA,
                      annotation_colors = if (length(ann_col)) ann_col else NA,
+                     cluster_rows = !split, cluster_cols = !split,
+                     gaps_row = gaps, gaps_col = gaps,
                      show_rownames = show_names, show_colnames = show_names,
                      fontsize_row = fontsize_names, fontsize_col = fontsize_names,
                      treeheight_row = 0, treeheight_col = 0,
@@ -642,6 +661,8 @@ plot_edge_heatmap <- function(ed, selected, features = NULL, C = NULL,
 #'   (NULL = the 8 largest; character(0) = none). See plot_edge_heatmap().
 #' @param annotation,annotation_colors extra feature annotation tracks for the
 #'   heatmap and their colours. See plot_edge_heatmap().
+#' @param heatmap_split group the heatmap by assay, with a gap between assays
+#'   and clustering within each assay (default TRUE). See plot_edge_heatmap().
 #' @param heatmap_names print feature names on the heatmap? NULL = yes for up to
 #'   200 features (the page grows with the number of features).
 #' @param out_dir if given, tables / plots / an .rds of the result are written there.
@@ -655,6 +676,7 @@ run_basil_pipeline <- function(data, types, sets = NULL, covariates = NULL,
                                rule = c("ci", "bfdr"), alpha = 0.05, min_abs = 0.1,
                                heatmap_sets = NULL, annotation = NULL,
                                annotation_colors = NULL, heatmap_names = NULL,
+                               heatmap_split = TRUE,
                                out_dir = NULL, seed = 1, verbose = TRUE) {
   edge_type <- match.arg(edge_type); rule <- match.arg(rule)
   prep <- basil_prepare(data, types, prep_args, covariates, inverse_normal, verbose)
@@ -709,6 +731,7 @@ run_basil_pipeline <- function(data, types, sets = NULL, covariates = NULL,
                                         show_sets = heatmap_sets, annotation = annotation,
                                         annotation_colors = annotation_colors,
                                         show_names = heatmap_names,
+                                        split_by_assay = heatmap_split,
                                         title = lab)$gtable)
       grDevices::dev.off()
     }
