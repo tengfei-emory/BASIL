@@ -43,6 +43,126 @@ pairwise edge.
 | `"correlation"` (default) | marginal correlation, includes indirect association | what the BASIL paper and its coverage correction address |
 | `"partial"` | partial correlation from the implied precision matrix (comparable to glasso edges) | exploratory: derived per draw by the pipeline; BASIL's coverage correction was not designed for it, and the precision matrix of a factor model is dense, not sparse |
 
+## Method
+
+This section describes what the code does, step by step. Steps 2-4 are the
+BASIL package; steps 1, 5 and 6 are added by the pipeline.
+
+### 1. Preparing the data
+
+Each assay is transformed to a roughly Gaussian scale (see the next section),
+optionally residualised on covariates by least squares, and every feature is
+centred and scaled to unit variance. The assays are joined into one matrix `Y`
+with n samples (those present in all assays) and p features.
+
+### 2. The model
+
+BASIL is a Bayesian latent factor model. Each sample is explained by `k`
+unobserved factors plus independent noise:
+
+```
+y_i = Lambda eta_i + e_i,   eta_i ~ N(0, I_k),   e_i ~ N(0, sigma^2 I_p)
+Cov(y_i) = Lambda Lambda' + sigma^2 I_p
+```
+
+`Lambda` (p x k) holds the loadings: how strongly each feature follows each
+factor. Two features are correlated when they load on the same factors. With
+k much smaller than p, the whole p x p covariance matrix is described by
+p x k numbers, which is what makes it estimable when p is larger than n.
+
+The feature sets enter through the prior on `Lambda`. The loadings are split
+into a part that is constant within sets (the part lying in the column space
+of the membership matrix `C`) and a remainder. Each part has its own Gaussian
+prior, with variance `tau_gamma sigma^2` and `tau_psi sigma^2`. Both variances
+are estimated from the data (empirical Bayes). If the sets explain much of the
+shared variation, `tau_gamma` comes out larger than `tau_psi`, and the
+set-driven part is shrunk less than the rest. Uninformative sets get a small
+`tau_gamma`, so their part is shrunk strongly.
+
+### 3. Fitting: no MCMC
+
+BASIL avoids Markov chain Monte Carlo. It works in two moves:
+
+1. **Estimate the factors.** The factor scores are taken from the leading `k`
+   singular vectors of `Y`. With many features this estimate is accurate,
+   because every feature carries information about the same few factors.
+   `k` is chosen by an information criterion (JIC) unless you fix it.
+2. **Posterior of the loadings given the factors.** With the factors treated
+   as known, the model is a set of linear regressions of each feature on the
+   factors, and the posterior is available in closed form:
+   - `sigma^2` has an inverse-gamma posterior;
+   - given `sigma^2`, `Lambda` is Gaussian, centred at a shrunken regression
+     estimate (shrinkage factor `n / (n + 1/tau)`, separately for the two
+     parts), with standard deviation `sigma / sqrt(n + 1/tau)`.
+
+Posterior draws are therefore independent draws from known distributions.
+There is no burn-in and no convergence to check, and a fit takes seconds.
+
+### 4. Coverage correction
+
+Treating the estimated factors as known ignores one source of uncertainty, so
+the closed-form posterior is too narrow. BASIL corrects this by multiplying
+the posterior standard deviation of the loadings by a factor `rho`, which is
+at least 1 and is computed from the fitted loadings and noise variance. The
+purpose is that credible intervals for the entries of the covariance matrix
+cover the true value at the stated rate. The log prints `rho`; it was about
+1.2-1.3 in our simulated examples.
+
+### 5. From loadings to edges with uncertainty
+
+The pipeline takes `n_MC` posterior draws (default 1000) of `(Lambda,
+sigma^2)`. For each draw `t` it forms the implied matrix
+
+```
+Sigma_t = Lambda_t Lambda_t' + sigma_t^2 I
+```
+
+and converts it to correlations (or, with `edge_type = "partial"`, inverts it
+and converts to partial correlations). Every feature pair `(i, j)` thus gets
+`n_MC` values of its edge: a sample from the posterior distribution of that
+edge. From this sample the pipeline reports
+
+| quantity | how it is computed |
+|---|---|
+| `mean` | average over draws |
+| `lower`, `upper` | the 2.5% and 97.5% quantiles of the draws (for `level = 0.95`) |
+| `prob_direction` | fraction of draws with the same sign as the mean |
+| `prob_gt_delta` | fraction of draws with \|edge\| > `delta` |
+
+This is the difference from glasso. Glasso returns one sparse estimate, and
+an edge is either in or out with no statement of confidence. Here every edge
+has a full posterior distribution, so a weak but precisely estimated edge can
+be told apart from a strong but uncertain one.
+
+### 6. Selecting edges
+
+- `rule = "ci"`: report an edge if its credible interval excludes zero and
+  \|mean\| >= `min_abs`. Each interval is a per-edge statement; nothing
+  accounts for the number of edges examined.
+- `rule = "bfdr"`: Bayesian false discovery rate. Edges are ranked by
+  `prob_gt_delta`. For an edge, `1 - prob_gt_delta` is the posterior
+  probability that it is *not* larger than `delta`. The `bfdr` of an edge is
+  the average of this probability over the edge and all edges ranked above
+  it, which is the expected fraction of false reports if the list is cut
+  there. Edges with `bfdr <= alpha` are reported. This rule does account for
+  the number of edges.
+
+### What the uncertainty does and does not include
+
+Included: sampling variability of the loadings and of `sigma^2`, with the
+correction for estimated factors.
+
+Not included: the choice of `k`, the estimated prior variances, the data
+preparation (imputation, covariate adjustment, CLR), and the `equalize_noise`
+rescaling. All of these are treated as fixed. The intervals also rest on the
+model: Gaussian data, independent samples, a common noise variance, and
+low-rank structure. "Calibration and limits" below reports how the intervals
+behave in simulations.
+
+The model, the fitting procedure and the coverage correction are those of
+the [BASIL package](https://github.com/federicastolf/BASIL); see its authors'
+documentation for the theory.
+
 ## Data preparation (done by `types`)
 
 | type | Use for | What happens |
