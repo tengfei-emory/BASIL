@@ -256,6 +256,9 @@ basil_prepare <- function(data, types, prep_args = list(), covariates = NULL,
 #'   `features$feature` and `features$name`. A set may span assays.
 #' @param add_modality add one indicator column per assay.
 #' @param min_size drop sets with fewer matched members.
+#' @return the membership matrix C. A set whose members are exactly those of an
+#'   assay (or of another set) adds nothing to the model and is left out of C;
+#'   it is kept in attr(C, "display_sets") so the heatmap can still show it.
 basil_membership <- function(features, sets = NULL, add_modality = TRUE,
                              min_size = 2, verbose = TRUE) {
   p <- nrow(features)
@@ -275,11 +278,18 @@ basil_membership <- function(features, sets = NULL, add_modality = TRUE,
   }
   C <- do.call(cbind, cols)
   rownames(C) <- features$feature
-  C <- C[, !duplicated(t(C)), drop = FALSE]
+  dup <- duplicated(t(C))                 # assay columns come first, so these are sets
+  extra <- C[, dup, drop = FALSE]
+  if (any(dup))
+    .msg(verbose, "Set(s) identical to an assay or to another set: ",
+         paste(colnames(C)[dup], collapse = ", "),
+         " (left out of the model, still shown in the heatmap)")
+  C <- C[, !dup, drop = FALSE]
   q <- qr(C)$rank
   if (q >= p)
     stop("C has rank ", q, " >= number of features (", p, "). Use fewer / broader sets.")
   .msg(verbose, "Membership matrix C: ", p, " features x ", ncol(C), " sets (rank ", q, ")")
+  if (ncol(extra)) attr(C, "display_sets") <- extra
   C
 }
 
@@ -508,6 +518,10 @@ plot_basil_network <- function(edges, features = NULL, max_edges = 300, label_to
 #'   track per feature set (sets can overlap, so each gets its own track).
 #' @param show_sets names of the sets to show. NULL = the `max_sets` largest.
 #'   Use character(0) for none.
+#' @param show_names print feature names? NULL = yes for up to 200 features.
+#'   Above 60 features the font shrinks, so draw on a large page
+#'   (run_basil_pipeline() sizes the PDF for you).
+#' @param fontsize_names font size of the feature names; NULL = automatic.
 #' @param annotation extra feature annotations: a named list with one entry per
 #'   track. Each entry is a vector of values (categories or numbers) named by
 #'   feature, e.g. list(BA_class = c(CA = "primary", DCA = "secondary")).
@@ -519,7 +533,8 @@ plot_basil_network <- function(edges, features = NULL, max_edges = 300, label_to
 #'   and feature-set names to override their default colours.
 plot_edge_heatmap <- function(ed, selected, features = NULL, C = NULL,
                               show_sets = NULL, max_sets = 8, annotation = NULL,
-                              annotation_colors = NULL, title = NULL) {
+                              annotation_colors = NULL, show_names = NULL,
+                              fontsize_names = NULL, title = NULL) {
   .need("pheatmap")
   A <- ed$mean; A[] <- 0
   idx <- cbind(match(selected$feature1, rownames(A)), match(selected$feature2, rownames(A)))
@@ -528,7 +543,9 @@ plot_edge_heatmap <- function(ed, selected, features = NULL, C = NULL,
   ann <- data.frame(row.names = rownames(A))
   ann_col <- list()
   if (!is.null(C)) {
+    extra <- attr(C, "display_sets")       # sets left out of the model as duplicates
     C <- C[rownames(A), !grepl("^assay:", colnames(C)), drop = FALSE]
+    if (!is.null(extra)) C <- cbind(C, extra[rownames(A), , drop = FALSE])
     if (is.null(show_sets))
       show_sets <- utils::head(colnames(C)[order(-colSums(C))], max_sets)
     bad <- setdiff(show_sets, colnames(C))
@@ -582,11 +599,14 @@ plot_edge_heatmap <- function(ed, selected, features = NULL, C = NULL,
     }
   }
   if (ncol(ann) == 0) ann <- NA
+  if (is.null(show_names)) show_names <- nrow(A) <= 200
+  if (is.null(fontsize_names)) fontsize_names <- max(5, min(10, 600 / nrow(A)))
   h <- pheatmap::pheatmap(A, breaks = seq(-lim, lim, length.out = 52),
                      color = grDevices::colorRampPalette(c("#4575B4", "white", "#D73027"))(51),
                      annotation_row = ann, annotation_col = ann, border_color = NA,
                      annotation_colors = if (length(ann_col)) ann_col else NA,
-                     show_rownames = nrow(A) <= 60, show_colnames = nrow(A) <= 60,
+                     show_rownames = show_names, show_colnames = show_names,
+                     fontsize_row = fontsize_names, fontsize_col = fontsize_names,
                      treeheight_row = 0, treeheight_col = 0,
                      main = if (is.null(title)) NA else title, silent = TRUE)
   # pheatmap lists row and column annotations twice when laying out the legend,
@@ -597,6 +617,12 @@ plot_edge_heatmap <- function(ed, selected, features = NULL, C = NULL,
     up <- grid::unit(1, "npc") - ch[[1]]$y
     for (j in seq_along(ch)) ch[[j]]$y <- ch[[j]]$y + up
     h$gtable$grobs[[k]]$children <- ch
+    # pheatmap also sizes the legend column too tightly for some labels
+    pad <- grid::unit(0.35, "inches")
+    lc <- h$gtable$layout$l[k]
+    mc <- h$gtable$layout$l[h$gtable$layout$name == "matrix"]
+    h$gtable$widths[lc] <- h$gtable$widths[lc] + pad
+    h$gtable$widths[mc] <- h$gtable$widths[mc] - pad
   }
   h
 }
@@ -616,6 +642,8 @@ plot_edge_heatmap <- function(ed, selected, features = NULL, C = NULL,
 #'   (NULL = the 8 largest; character(0) = none). See plot_edge_heatmap().
 #' @param annotation,annotation_colors extra feature annotation tracks for the
 #'   heatmap and their colours. See plot_edge_heatmap().
+#' @param heatmap_names print feature names on the heatmap? NULL = yes for up to
+#'   200 features (the page grows with the number of features).
 #' @param out_dir if given, tables / plots / an .rds of the result are written there.
 #' @return list(prep, C, fit, edges (all), selected, matrices, settings)
 run_basil_pipeline <- function(data, types, sets = NULL, covariates = NULL,
@@ -626,7 +654,7 @@ run_basil_pipeline <- function(data, types, sets = NULL, covariates = NULL,
                                level = 0.95, delta = 0.1,
                                rule = c("ci", "bfdr"), alpha = 0.05, min_abs = 0.1,
                                heatmap_sets = NULL, annotation = NULL,
-                               annotation_colors = NULL,
+                               annotation_colors = NULL, heatmap_names = NULL,
                                out_dir = NULL, seed = 1, verbose = TRUE) {
   edge_type <- match.arg(edge_type); rule <- match.arg(rule)
   prep <- basil_prepare(data, types, prep_args, covariates, inverse_normal, verbose)
@@ -664,17 +692,23 @@ run_basil_pipeline <- function(data, types, sets = NULL, covariates = NULL,
                         lab, if (nrow(sel) > 300) ", 300 strongest edges" else "")),
                       width = 10, height = 8)
       # legend length grows with the number of tracks: make the page tall enough
-      n_sets <- if (is.null(heatmap_sets)) min(8, sum(!grepl("^assay:", colnames(C))))
-                else length(heatmap_sets)
+      n_sets <- if (is.null(heatmap_sets))
+        min(8, sum(!grepl("^assay:", colnames(C))) + sum(ncol(attr(C, "display_sets"))))
+        else length(heatmap_sets)
       leg <- 2 + length(unique(prep$features$modality)) + 3 * n_sets +
         sum(vapply(annotation, function(v) 2 + if (is.numeric(v)) 5 else
           length(unique(stats::na.omit(as.character(v)))), numeric(1)))
-      grDevices::pdf(file.path(out_dir, "edge_heatmap.pdf"), width = 11.5,
-                     height = max(9, 4 + 0.22 * leg))
+      # with names shown, give every feature beyond 60 another 0.1 inch
+      p_all <- nrow(prep$features)
+      named <- if (is.null(heatmap_names)) p_all <= 200 else heatmap_names
+      grow <- if (named) 0.1 * max(0, p_all - 60) else 0
+      grDevices::pdf(file.path(out_dir, "edge_heatmap.pdf"), width = 11.5 + grow,
+                     height = max(9 + grow, 4 + 0.22 * leg))
       grid::grid.newpage()
       grid::grid.draw(plot_edge_heatmap(ed, sel, prep$features, C = C,
                                         show_sets = heatmap_sets, annotation = annotation,
                                         annotation_colors = annotation_colors,
+                                        show_names = heatmap_names,
                                         title = lab)$gtable)
       grDevices::dev.off()
     }

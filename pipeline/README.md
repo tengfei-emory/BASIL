@@ -137,6 +137,10 @@ With several assays, an indicator per assay is added automatically. Without
 `sets` the fit is a plain Bayesian factor model: still valid, but BASIL's
 pathway-informed shrinkage is not used.
 
+A set that contains exactly the features of one assay (or exactly the members
+of another set) carries no extra information for the model, so it is left out
+of the fit. The log says so, and the set still gets its track in the heatmap.
+
 ## Reading the edge table
 
 | column | meaning |
@@ -164,6 +168,9 @@ With `out_dir` set, three plots are written:
   By default the 8 largest sets are shown; choose others with
   `heatmap_sets = c("primary_BA", "IL6_signaling")`, or `character(0)` for none.
   Extra tracks of your own are added with `annotation` (next section).
+  Feature names are printed for up to 200 features; above 60 the font
+  shrinks and the page grows, so zoom in. Force them on or off with
+  `heatmap_names = TRUE` / `FALSE`.
 
 ### Your own annotation tracks
 
