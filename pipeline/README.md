@@ -300,7 +300,7 @@ Selection (`rule`): `"ci"` keeps edges whose interval excludes zero and
 
 ## Plots
 
-With `out_dir` set, three plots are written:
+With `out_dir` set, four plots are written:
 
 - `edge_forest.pdf`: the strongest selected edges with their credible intervals.
 - `network.pdf`: the 300 strongest selected edges; nodes coloured by assay.
@@ -315,8 +315,18 @@ With `out_dir` set, three plots are written:
   done within each assay. `heatmap_split = FALSE` clusters all features
   together instead.
   Feature names are printed for up to 200 features; above 60 the font
-  shrinks and the page grows, so zoom in. Force them on or off with
+  shrinks, so zoom in. Force them on or off with
   `heatmap_names = TRUE` / `FALSE`.
+- `edge_heatmap_connected.pdf`: the same heatmap, restricted to features that
+  have at least one selected edge. Features without any selected edge, and
+  set tracks left without a member, are removed. Not written when every
+  feature has a selected edge.
+
+Page sizes adapt to the content. Each heatmap page grows with the number of
+features, the length of the feature names and the number of annotation
+tracks (up to about 30 inches for the matrix itself). The network page grows
+with the number of nodes, and the forest plot with the number of edges and
+the length of the labels.
 
 ### Your own annotation tracks
 
@@ -354,8 +364,13 @@ The plots can be redrawn from a result with `plot_edge_forest()`,
 h <- plot_edge_heatmap(res$matrices, res$selected, res$prep$features,
                        C = res$C, show_sets = c("primary_BA", "secondary_BA"),
                        annotation = ann, annotation_colors = cols)
-grid::grid.newpage(); grid::grid.draw(h$gtable)
+pdf("my_heatmap.pdf", width = h$size[["width"]], height = h$size[["height"]])
+grid::grid.draw(h$gtable)
+dev.off()
 ```
+
+`h$size` is the suggested page size for that heatmap. Add
+`connected_only = TRUE` to leave out features without a selected edge.
 
 ## Settings guide
 

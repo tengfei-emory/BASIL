@@ -537,13 +537,19 @@ plot_basil_network <- function(edges, features = NULL, max_edges = 300, label_to
 #' @param show_sets names of the sets to show. NULL = the `max_sets` largest.
 #'   Use character(0) for none.
 #' @param show_names print feature names? NULL = yes for up to 200 features.
-#'   Above 60 features the font shrinks, so draw on a large page
-#'   (run_basil_pipeline() sizes the PDF for you).
+#'   Above 60 features the font shrinks; draw on a page of the returned `size`.
 #' @param fontsize_names font size of the feature names; NULL = automatic.
 #' @param split_by_assay if TRUE (default) and `features` has several assays,
 #'   features are grouped by assay with a gap between assays, and hierarchical
 #'   clustering is done within each assay only. FALSE = cluster all features
 #'   together.
+#' @param connected_only if TRUE, features without any selected edge are left
+#'   out, so the heatmap shows only features that are part of the network.
+#' @return the pheatmap object, with an extra element `size`: a suggested page
+#'   width and height in inches, which grow with the number of features, the
+#'   length of their names and the number of annotation tracks. Draw with
+#'   pdf(file, width = h$size[["width"]], height = h$size[["height"]]);
+#'   grid::grid.draw(h$gtable).
 #' @param annotation extra feature annotations: a named list with one entry per
 #'   track. Each entry is a vector of values (categories or numbers) named by
 #'   feature, e.g. list(BA_class = c(CA = "primary", DCA = "secondary")).
@@ -557,7 +563,7 @@ plot_edge_heatmap <- function(ed, selected, features = NULL, C = NULL,
                               show_sets = NULL, max_sets = 8, annotation = NULL,
                               annotation_colors = NULL, show_names = NULL,
                               fontsize_names = NULL, split_by_assay = TRUE,
-                              title = NULL) {
+                              connected_only = FALSE, title = NULL) {
   .need("pheatmap")
   A <- ed$mean; A[] <- 0
   idx <- cbind(match(selected$feature1, rownames(A)), match(selected$feature2, rownames(A)))
@@ -569,8 +575,10 @@ plot_edge_heatmap <- function(ed, selected, features = NULL, C = NULL,
     extra <- attr(C, "display_sets")       # sets left out of the model as duplicates
     C <- C[rownames(A), !grepl("^assay:", colnames(C)), drop = FALSE]
     if (!is.null(extra)) C <- cbind(C, extra[rownames(A), , drop = FALSE])
-    if (is.null(show_sets))
-      show_sets <- utils::head(colnames(C)[order(-colSums(C))], max_sets)
+    if (is.null(show_sets)) {
+      cs <- colSums(C); o <- order(-cs)
+      show_sets <- utils::head(colnames(C)[o][cs[o] > 0], max_sets)
+    }
     bad <- setdiff(show_sets, colnames(C))
     if (length(bad)) stop("Unknown or unused feature set(s): ", paste(bad, collapse = ", "))
     pal <- grDevices::hcl.colors(max(length(show_sets), 3), "Dark 3")
@@ -621,6 +629,22 @@ plot_edge_heatmap <- function(ed, selected, features = NULL, C = NULL,
       ann_col[[a]] <- cols
     }
   }
+  if (connected_only) {
+    keep <- rowSums(A != 0) > 0
+    if (sum(keep) < 2) stop("Fewer than 2 features have a selected edge.")
+    A <- A[keep, keep, drop = FALSE]
+    ann <- ann[keep, , drop = FALSE]
+    empty <- names(ann)[vapply(ann, function(v) all(is.na(v)), logical(1))]
+    ann <- ann[, setdiff(names(ann), empty), drop = FALSE]   # tracks with no member left
+    ann_col <- ann_col[setdiff(names(ann_col), empty)]
+  }
+  n_track <- ncol(ann)
+  leg_lab <- names(ann); leg_lines <- 0
+  for (a in names(ann)) {
+    lv <- if (is.numeric(ann[[a]])) rep("0000", 5) else names(ann_col[[a]])
+    leg_lab <- c(leg_lab, lv); leg_lines <- leg_lines + 2 + length(lv)
+  }
+  track_names <- names(ann)
   if (ncol(ann) == 0) ann <- NA
   if (is.null(show_names)) show_names <- nrow(A) <= 200
   gaps <- NULL
@@ -661,6 +685,16 @@ plot_edge_heatmap <- function(ed, selected, features = NULL, C = NULL,
     h$gtable$widths[lc] <- h$gtable$widths[lc] + pad
     h$gtable$widths[mc] <- h$gtable$widths[mc] - pad
   }
+  # suggested page size (inches): one cell per feature, plus room for the
+  # names, the annotation tracks and the legends
+  np <- nrow(A)
+  side <- min(30, max(4, np * if (show_names) (fontsize_names + 1.5) / 72 else 0.03))
+  name_in <- max(if (show_names) max(nchar(rownames(A))) * fontsize_names * 0.55 / 72 + 0.15 else 0,
+                 if (n_track) max(nchar(track_names)) * 0.085 + 0.1 else 0)
+  leg_in <- 0.9 + if (n_track) max(nchar(leg_lab)) * 0.085 + 0.8 else 0
+  h$size <- c(width = n_track * 0.17 + side + name_in + leg_in + 0.3,
+              height = max(n_track * 0.17 + side + name_in + 0.3 + 0.4 * !is.null(title),
+                           1 + 0.2 * leg_lines))
   h
 }
 
@@ -683,7 +717,10 @@ plot_edge_heatmap <- function(ed, selected, features = NULL, C = NULL,
 #'   and clustering within each assay (default TRUE). See plot_edge_heatmap().
 #' @param heatmap_names print feature names on the heatmap? NULL = yes for up to
 #'   200 features (the page grows with the number of features).
-#' @param out_dir if given, tables / plots / an .rds of the result are written there.
+#' @param out_dir if given, tables / plots / an .rds of the result are written
+#'   there. Page sizes adapt to the number of features. Two heatmaps are
+#'   written: edge_heatmap.pdf (all features) and edge_heatmap_connected.pdf
+#'   (only features with at least one selected edge).
 #' @return list(prep, C, fit, edges (all), selected, matrices, settings)
 run_basil_pipeline <- function(data, types, sets = NULL, covariates = NULL,
                                prep_args = list(), inverse_normal = FALSE,
@@ -724,34 +761,41 @@ run_basil_pipeline <- function(data, types, sets = NULL, covariates = NULL,
     saveRDS(slim, file.path(out_dir, "basil_result.rds"))
     lab <- sprintf("BASIL %s network (%g%% CI)", edge_type, 100 * level)
     if (nrow(sel)) {
-      ggplot2::ggsave(file.path(out_dir, "edge_forest.pdf"),
-                      plot_edge_forest(sel, title = lab), width = 8,
-                      height = 2 + 0.2 * min(40, nrow(sel)))
+      # page sizes grow with what has to fit on the page
+      fo <- plot_edge_forest(sel, title = lab)
+      ggplot2::ggsave(file.path(out_dir, "edge_forest.pdf"), fo,
+                      width = min(16, max(7, 4 + 0.085 * max(nchar(levels(fo$data$edge))))),
+                      height = 2 + 0.2 * min(40, nrow(sel)), limitsize = FALSE)
+      top <- sel[order(-abs(sel$mean)), ][seq_len(min(300, nrow(sel))), ]
+      w <- min(20, max(8, 6 + 0.05 * length(unique(c(top$feature1, top$feature2)))))
       ggplot2::ggsave(file.path(out_dir, "network.pdf"),
                       plot_basil_network(sel, prep$features, title = paste0(
                         lab, if (nrow(sel) > 300) ", 300 strongest edges" else "")),
-                      width = 10, height = 8)
-      # legend length grows with the number of tracks: make the page tall enough
-      n_sets <- if (is.null(heatmap_sets))
-        min(8, sum(!grepl("^assay:", colnames(C))) + sum(ncol(attr(C, "display_sets"))))
-        else length(heatmap_sets)
-      leg <- 2 + length(unique(prep$features$modality)) + 3 * n_sets +
-        sum(vapply(annotation, function(v) 2 + if (is.numeric(v)) 5 else
-          length(unique(stats::na.omit(as.character(v)))), numeric(1)))
-      # with names shown, give every feature beyond 60 another 0.1 inch
-      p_all <- nrow(prep$features)
-      named <- if (is.null(heatmap_names)) p_all <= 200 else heatmap_names
-      grow <- if (named) 0.1 * max(0, p_all - 60) else 0
-      grDevices::pdf(file.path(out_dir, "edge_heatmap.pdf"), width = 11.5 + grow,
-                     height = max(9 + grow, 4 + 0.22 * leg))
-      grid::grid.newpage()
-      grid::grid.draw(plot_edge_heatmap(ed, sel, prep$features, C = C,
-                                        show_sets = heatmap_sets, annotation = annotation,
-                                        annotation_colors = annotation_colors,
-                                        show_names = heatmap_names,
-                                        split_by_assay = heatmap_split,
-                                        title = lab)$gtable)
-      grDevices::dev.off()
+                      width = w, height = 0.8 * w, limitsize = FALSE)
+      write_heatmap <- function(file, connected, title) {
+        grDevices::pdf(NULL)               # build first: the page size depends on the plot
+        h <- tryCatch(
+          plot_edge_heatmap(ed, sel, prep$features, C = C, show_sets = heatmap_sets,
+                            annotation = annotation, annotation_colors = annotation_colors,
+                            show_names = heatmap_names, split_by_assay = heatmap_split,
+                            connected_only = connected, title = title),
+          finally = grDevices::dev.off())
+        grDevices::pdf(file.path(out_dir, file), width = h$size[["width"]],
+                       height = h$size[["height"]])
+        grid::grid.newpage(); grid::grid.draw(h$gtable)
+        grDevices::dev.off()
+      }
+      write_heatmap("edge_heatmap.pdf", FALSE, lab)
+      # same heatmap without the features that have no selected edge
+      n_conn <- length(unique(c(sel$feature1, sel$feature2)))
+      if (n_conn < nrow(prep$features)) {
+        write_heatmap("edge_heatmap_connected.pdf", TRUE,
+                      sprintf("%s, %d of %d features with a selected edge",
+                              lab, n_conn, nrow(prep$features)))
+      } else {
+        unlink(file.path(out_dir, "edge_heatmap_connected.pdf"))
+        .msg(verbose, "Every feature has a selected edge: edge_heatmap_connected.pdf not written.")
+      }
     }
     .msg(verbose, "Results written to ", normalizePath(out_dir))
   }
