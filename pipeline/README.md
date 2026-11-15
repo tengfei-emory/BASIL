@@ -160,8 +160,14 @@ low-rank structure. "Calibration and limits" below reports how the intervals
 behave in simulations.
 
 The model, the fitting procedure and the coverage correction are those of
-the [BASIL package](https://github.com/federicastolf/BASIL); see its authors'
-documentation for the theory.
+BASIL. For the theory and the simulation studies, see the paper:
+
+> Mauri L, Stolf F, Herring AH, Miller C, Dunson DB (2026). Pathway-based
+> Bayesian factor models for 'omics data. arXiv:2601.13419.
+> <https://arxiv.org/abs/2601.13419>
+
+Please cite it when you report results from this pipeline. The package is at
+<https://github.com/federicastolf/BASIL>.
 
 ## Data preparation (done by `types`)
 
@@ -169,14 +175,30 @@ documentation for the theory.
 |---|---|---|
 | `"concentration"` | bile acids, SCFAs (absolute or relative concentrations) | zeros / below-`lod` / NA treated as below LOQ and set to half the feature's smallest observed value (or `lod/2`); log2 |
 | `"npx"` | Olink NPX | no transform (NPX is log2); values below LOD are kept; sporadic NAs median-imputed |
-| `"counts"` | raw read counts | low-count filter (>= 10 reads in >= 20% of samples), log2-CPM |
-| `"normalized"` | expression already normalised but on the linear scale (normalised counts, CPM/TPM) | log2(x + 1) |
+| `"counts"` | raw read counts | low-count filter (>= 10 reads in >= 20% of samples), log2-CPM; then the 2000 most variable genes |
+| `"normalized"` | expression already normalised but on the linear scale (normalised counts, CPM/TPM) | log2(x + 1); then the 2000 most variable genes |
 | `"microbiome"` | taxon abundances from shotgun or amplicon sequencing, as raw counts or relative abundance | rare taxa pooled into "Other"; zeros replaced; centred log-ratio (CLR) |
 | `"none"` | anything already normalised and log-scaled | missing-value handling only |
 
 All types drop features with > 50% censored/missing (`max_censored`) or no
 variance. Per-assay options go in `prep_args`, e.g.
 `prep_args = list(bile_acids = list(lod = lod_vector, na_is_censored = FALSE))`.
+
+**Highly variable genes.** A whole transcriptome should not go into the
+network: most genes barely vary between samples, and they add noise and
+millions of uninformative pairs. For `"counts"` and `"normalized"` the
+pipeline therefore keeps the `n_hvg` most variable genes (default 2000, a
+common choice). Genes are ranked on the log scale by their variance relative
+to the mean-variance trend (a loess fit of log variance on mean expression),
+the same idea as the variable-gene selection in Seurat and scran: a gene
+counts as variable if it varies more than other genes of similar expression
+level, so genes are not picked just because low expression makes them noisy.
+A panel with fewer genes than `n_hvg` is left as it is. Change the number
+with `prep_args = list(rna = list(n_hvg = 1000))`; `n_hvg = Inf` keeps all
+genes. The other types have no limit by default, but accept `n_hvg` too
+(useful for log-scale expression entered as `"none"`).
+`feature_prep_log.csv` records which genes were dropped and why.
+
 Then, for all features together: optional covariate regression, optional
 rank-based inverse normal transform (`inverse_normal = TRUE`, for skewed or
 outlier-prone data), z-scoring.
@@ -382,6 +404,7 @@ These are per assay and go in `prep_args`, e.g.
 | `lod` | none | `"concentration"`, `"npx"` | Limit of detection, one number or a named vector by feature. For concentrations, values below it are replaced by `lod/2`. For NPX it is only used to count and filter. |
 | `na_is_censored` | `TRUE` | `"concentration"` | `TRUE`: a missing value means "below LOQ". `FALSE`: it means "not measured" and is filled with the feature median. |
 | `min_count`, `min_prop` | `10`, `0.2` | `"counts"` | A gene is kept if it has at least `min_count` reads in at least `min_prop` of samples. |
+| `n_hvg` | `2000` for `"counts"` and `"normalized"`, no limit otherwise | all types | Keep only this many of the most variable features (highly variable genes). Fewer genes give a faster fit and a more readable network; `Inf` keeps all. Genes named in `sets` but filtered out are simply absent from the analysis. |
 
 ### Fixed by the pipeline
 

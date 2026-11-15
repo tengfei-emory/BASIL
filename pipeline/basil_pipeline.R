@@ -53,11 +53,17 @@
 #'   "not measured" (FALSE -> median-imputed on the log scale)?
 #' @param min_count,min_prop for "counts": keep features with at least
 #'   `min_count` reads in at least `min_prop` of samples.
+#' @param n_hvg keep only the `n_hvg` most variable features (highly variable
+#'   genes). NULL = 2000 for "counts" and "normalized", no limit for the other
+#'   types. Applied after the other filters, on the log scale. Features are
+#'   ranked by their variance relative to the mean-variance trend (a loess fit
+#'   of log variance on mean expression), so that genes are not picked merely
+#'   because low expression makes them noisy. Use Inf to keep every feature.
 #' @return list(x = cleaned matrix, log = per-feature record of what was done)
 prep_modality <- function(x, type = c("concentration", "npx", "counts", "normalized",
                                      "microbiome", "none"),
                           lod = NULL, max_censored = 0.5, na_is_censored = TRUE,
-                          min_count = 10, min_prop = 0.2) {
+                          min_count = 10, min_prop = 0.2, n_hvg = NULL) {
   type <- match.arg(type)
   x <- as.matrix(x)
   if (!is.numeric(x)) stop("Assay matrix must be numeric (samples x features).")
@@ -140,6 +146,18 @@ prep_modality <- function(x, type = c("concentration", "npx", "counts", "normali
   v <- apply(x, 2, stats::var)
   flat <- log$kept & (is.na(v) | v < 1e-12)
   log$kept[flat] <- FALSE; log$reason[flat] <- "no variance"
+
+  # highly variable features: variance relative to the mean-variance trend
+  if (is.null(n_hvg)) n_hvg <- if (type %in% c("counts", "normalized")) 2000 else Inf
+  if (length(n_hvg) != 1 || is.na(n_hvg) || n_hvg < 1) stop("`n_hvg` must be a positive number.")
+  ok <- which(log$kept)
+  if (length(ok) > n_hvg) {
+    m <- colMeans(x[, ok, drop = FALSE]); lv <- log(v[ok])
+    trend <- tryCatch(stats::fitted(stats::loess(lv ~ m, span = 0.3, degree = 1)),
+                      error = function(e) rep(stats::median(lv), length(lv)))
+    out <- ok[rank(trend - lv, ties.method = "first") > n_hvg]
+    log$kept[out] <- FALSE; log$reason[out] <- "not among the most variable"
+  }
 
   list(x = x[, log$kept, drop = FALSE], log = log)
 }
